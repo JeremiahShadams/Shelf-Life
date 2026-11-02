@@ -147,7 +147,7 @@ with httpx.Client(base_url=BASE, timeout=60) as c:
             "fruit_id": banana["id"], "freshness_score": 0.8, "storage_method": "fridge"})
         other_id = r.json()["id"]
         # tester1 tries to patch tester2's item
-        r = c.patch(f"/api/inventory/{other_id}", headers=H, json={"quantity": 0})
+        r = c.patch(f"/api/inventory/{other_id}", headers=H, json={"quantity": 5})
         check("Cross-user PATCH blocked", r.status_code == 404, str(r.status_code))
         r = c.delete(f"/api/inventory/{other_id}", headers={"Authorization": f"Bearer {tok2}"})
         check("Owner cleanup", r.status_code == 200)

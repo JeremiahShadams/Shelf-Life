@@ -162,18 +162,21 @@ async def add_to_inventory(
 
     # Create an expiry notification (1 day before expiry)
     if days_remaining > 1:
-        notify_at = estimated_expiry - timedelta(days=1)
-        notification = Notification(
-            inventory_id=inventory_item.id,
-            message=f"⚠️ Your {fruit.name} expires tomorrow! Consider using it today.",
-            notify_at=notify_at,
-            sent=False,
+        db.add(
+            Notification(
+                inventory_id=inventory_item.id,
+                message=f"⚠️ Your {fruit.name} expires tomorrow! Consider using it today.",
+                notify_at=estimated_expiry - timedelta(days=1),
+                sent=False,
+            )
         )
-        db.add(notification)
-        await db.flush()
+
+    # Commit explicitly so the row is durable before the response goes out —
+    # get_db's after-yield commit runs after the response is sent, which lets
+    # an immediately-following read race the write and see stale state.
+    await db.commit()
 
     # Load the fruit relationship for the response
-    await db.refresh(inventory_item)
     result = await db.execute(
         select(UserInventory)
         .options(selectinload(UserInventory.fruit))
@@ -295,8 +298,19 @@ async def update_inventory_item(
                 )
             )
 
-    await db.flush()
-    await db.refresh(item)
+    # Commit explicitly BEFORE rendering: get_db's after-yield commit runs
+    # after the response is sent, so a client reading immediately after a
+    # PATCH could otherwise see pre-update state.
+    await db.commit()
+
+    # Re-select with the fruit loaded so _present_item can't trigger a
+    # lazy-load inside the async session (MissingGreenlet).
+    result = await db.execute(
+        select(UserInventory)
+        .options(selectinload(UserInventory.fruit))
+        .where(UserInventory.id == item.id)
+    )
+    item = result.scalar_one()
 
     return _present_item(item, utc_now())
 
@@ -326,6 +340,16 @@ async def delete_inventory_item(
         raise HTTPException(status_code=404, detail="Inventory item not found")
 
     fruit_name = item.fruit.name
+
+    # Remove the item's notifications with a bulk delete first — cascading
+    # through the relationship would lazy-load inside the async session.
+    await db.execute(
+        sa_delete(Notification).where(Notification.inventory_id == item.id)
+    )
     await db.delete(item)
+    # Commit explicitly so the deletion is durable before the response is
+    # sent (see add_to_inventory for the why — this fixes the flaky
+    # GET-after-DELETE race).
+    await db.commit()
 
     return MessageResponse(message=f"'{fruit_name}' removed from inventory")
