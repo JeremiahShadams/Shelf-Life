@@ -160,16 +160,22 @@ async def add_to_inventory(
     db.add(inventory_item)
     await db.flush()
 
-    # Create an expiry notification (1 day before expiry)
+    # Expiry alert. An item with <=1 day left is the MOST urgent case — it
+    # must notify immediately, not never (the old `> 1` guard skipped it).
     if days_remaining > 1:
-        db.add(
-            Notification(
-                inventory_id=inventory_item.id,
-                message=f"⚠️ Your {fruit.name} expires tomorrow! Consider using it today.",
-                notify_at=estimated_expiry - timedelta(days=1),
-                sent=False,
-            )
+        message = f"⚠️ Your {fruit.name} expires tomorrow! Consider using it today."
+        notify_at = estimated_expiry - timedelta(days=1)
+    else:
+        message = f"‼️ Your {fruit.name} needs to be used today or frozen."
+        notify_at = now
+    db.add(
+        Notification(
+            inventory_id=inventory_item.id,
+            message=message,
+            notify_at=notify_at,
+            sent=False,
         )
+    )
 
     # Commit explicitly so the row is durable before the response goes out —
     # get_db's after-yield commit runs after the response is sent, which lets
@@ -285,18 +291,27 @@ async def update_inventory_item(
             sa_delete(Notification).where(Notification.inventory_id == item.id)
         )
 
+        # Same rule as add: re-arm the alert, and never drop it just because
+        # the remaining life is short — that is exactly when it matters.
         if item.estimated_days_remaining > 1:
-            db.add(
-                Notification(
-                    inventory_id=item.id,
-                    message=(
-                        f"\u26a0\ufe0f Your {item.fruit.name} expires tomorrow! "
-                        "Consider using it today."
-                    ),
-                    notify_at=item.estimated_expiry - timedelta(days=1),
-                    sent=False,
-                )
+            message = (
+                f"\u26a0\ufe0f Your {item.fruit.name} expires tomorrow! "
+                "Consider using it today."
             )
+            notify_at = item.estimated_expiry - timedelta(days=1)
+        else:
+            message = (
+                f"\u203c\ufe0f Your {item.fruit.name} needs to be used today or frozen."
+            )
+            notify_at = utc_now()
+        db.add(
+            Notification(
+                inventory_id=item.id,
+                message=message,
+                notify_at=notify_at,
+                sent=False,
+            )
+        )
 
     # Commit explicitly BEFORE rendering: get_db's after-yield commit runs
     # after the response is sent, so a client reading immediately after a

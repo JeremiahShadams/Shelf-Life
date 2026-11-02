@@ -19,7 +19,7 @@ from app.database import init_db, async_session
 from app.seed_data import seed_database
 from app.schemas.schemas import HealthResponse
 from app.services.scan_service import classifier_available
-from app.routers import fruits, scan, inventory, auth
+from app.routers import fruits, scan, inventory, auth, notifications
 
 # Windows consoles default to cp1252 and crash writing emoji/UTF-8 logs,
 # which swallows real tracebacks. Force UTF-8 where the runtime allows it.
@@ -157,6 +157,7 @@ app.include_router(auth.router)
 app.include_router(fruits.router)
 app.include_router(scan.router)
 app.include_router(inventory.router)
+app.include_router(notifications.router)
 
 
 # ============================================

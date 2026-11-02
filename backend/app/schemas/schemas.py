@@ -279,6 +279,23 @@ class MessageResponse(BaseModel):
     success: bool = True
 
 
+class NotificationResponse(BaseModel):
+    """An expiry alert tied to one of the user's inventory items."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    inventory_id: int
+    message: str
+    notify_at: datetime
+    sent: bool
+
+
+class NotificationListResponse(BaseModel):
+    """Paginated list of the user's pending expiry alerts."""
+    items: list[NotificationResponse]
+    total: int
+
+
 # ============================================
 # Auth Schemas
 # ============================================

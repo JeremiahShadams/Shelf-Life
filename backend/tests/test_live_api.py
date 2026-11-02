@@ -154,8 +154,7 @@ with httpx.Client(base_url=BASE, timeout=60) as c:
 
     # ---------- Notifications ----------
     r = c.get("/api/notifications", headers=H)
-    check("Notifications endpoint", r.status_code in (200, 404, 405),
-          f"{r.status_code} — {'EXISTS' if r.status_code == 200 else 'MISSING'}")
+    check("Notifications endpoint", r.status_code == 200, str(r.status_code))
 
     # does inventory add create notification rows we can ever read?
     r = c.post("/api/inventory/", headers=H, json={
@@ -203,6 +202,20 @@ with httpx.Client(base_url=BASE, timeout=60) as c:
     # days_left in response is live-computed from expiry, not the at-scan snapshot
     check("days_left response field is live-computed",
           body["days_left"] <= body["estimated_days_remaining"] + 0.01)
+
+    # urgent item (<1 day, via the freezer switch above) must still have armed
+    # a notification — the old `> 1` guard created none for it.
+    # (RE-ADD still exists here, so the list shape is checkable too.)
+    r = c.get("/api/notifications", headers=H)
+    body = r.json()
+    check("Notifications list shape", {"items", "total"} <= set(body.keys())
+          and body["total"] >= 1, f"total={body.get('total')}")
+    first = (body.get("items") or [{}])[0]
+    check("Notification fields present",
+          {"id", "inventory_id", "message", "notify_at", "sent"} <= set(first.keys()),
+          str(list(first.keys())))
+    urgent = [n["message"] for n in body["items"] if "\u203c\ufe0f" in n["message"]]
+    check("Urgent item (<1d) gets immediate alert", len(urgent) >= 1, f"messages={urgent[:2]}")
     c.delete(f"/api/inventory/{tog_id}", headers=H)
 
     # unknown fruit partially known → flagged not ignored
