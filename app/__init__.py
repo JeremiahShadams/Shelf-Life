@@ -1,0 +1,1 @@
+"""Deployment shim: makes the backend app importable as `app` from the repo root."""
