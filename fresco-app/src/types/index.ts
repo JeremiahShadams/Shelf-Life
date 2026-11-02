@@ -93,3 +93,4 @@ export interface RecipeSuggestion {
   steps: string[];
   related_inventory_ids: number[];
 }
+

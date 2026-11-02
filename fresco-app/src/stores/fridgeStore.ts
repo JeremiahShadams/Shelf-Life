@@ -61,3 +61,4 @@ export const useFridgeStore = create<FridgeState>((set, get) => ({
     }
   },
 }));
+
