@@ -53,4 +53,4 @@ export const dark = {
   scrim: "rgba(0, 0, 0, 0.7)",
 } as const;
 
-export type ThemeColors = typeof light;
+export type ThemeColors = { [K in keyof typeof light]: string };

@@ -12,7 +12,7 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from "react-native";
-import { useTheme } from "../../theme";
+import { useTheme } from "../../../theme";
 import { Text } from "./Text";
 
 export type InputProps = TextInputProps & {
@@ -22,7 +22,7 @@ export type InputProps = TextInputProps & {
   style?: StyleProp<ViewStyle>;
 };
 
-export const Input = forwardRef<TextInput, InputProps>(function Input(
+export const Input = forwardRef<React.ComponentRef<typeof TextInput>, InputProps>(function Input(
   { label, error, hint, style, onFocus, onBlur, ...rest },
   ref,
 ) {

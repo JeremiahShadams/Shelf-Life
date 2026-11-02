@@ -7,7 +7,7 @@
 
 import { forwardRef, type ReactNode } from "react";
 import { Platform, Pressable, View, type StyleProp, type ViewStyle } from "react-native";
-import { useTheme } from "../../theme";
+import { useTheme } from "../../../theme";
 
 export type CardProps = {
   children: ReactNode;
@@ -20,44 +20,43 @@ export type CardProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export const Card = forwardRef<View, CardProps>(function Card(
+export const Card = forwardRef<React.ComponentRef<typeof View>, CardProps>(function Card(
   { children, floating = false, plain = false, onPress, disabled = false, style },
   ref,
 ) {
   const theme = useTheme();
   const { colors, spacing, radius, borders, elevation } = theme;
 
-  const container = (
-    <View
-      style={[
-        {
-          backgroundColor: colors.surface,
-          borderRadius: radius.card,
-          borderWidth: borders.hairline,
-          borderColor: colors.border,
-          padding: plain ? 0 : spacing.m,
-          ...(floating && Platform.OS === "ios" ? elevation.card : null),
-        },
-        style,
-      ]}
-    >
-      {children}
-    </View>
-  );
+  const innerStyle = [
+    {
+      backgroundColor: colors.surface,
+      borderRadius: radius.card,
+      borderWidth: borders.hairline,
+      borderColor: colors.border,
+      padding: plain ? 0 : spacing.m,
+      ...(floating && Platform.OS === "ios" ? elevation.card : null),
+    },
+    style,
+  ];
 
-  if (!onPress) {
-    return container;
+  if (onPress) {
+    return (
+      <View ref={ref}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onPress}
+          disabled={disabled}
+          style={({ pressed }) => [{ opacity: pressed ? 0.72 : 1 }, innerStyle]}
+        >
+          {children}
+        </Pressable>
+      </View>
+    );
   }
 
   return (
-    <Pressable
-      ref={ref}
-      accessibilityRole="button"
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [pressed && { opacity: 0.7 }]}
-    >
-      {container}
-    </Pressable>
+    <View ref={ref} style={innerStyle}>
+      {children}
+    </View>
   );
 });

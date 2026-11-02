@@ -6,7 +6,7 @@
 
 import { forwardRef } from "react";
 import { Text as RNText, type TextProps as RNTextProps, type TextStyle } from "react-native";
-import { useTheme, type TextVariant } from "../../theme";
+import { useTheme, type TextVariant } from "../../../theme";
 
 export type TextProps = RNTextProps & {
   /** Typographic role from the locked scale. Defaults to body. */
@@ -25,7 +25,7 @@ const colorMap = {
   danger: "danger",
 } as const;
 
-export const Text = forwardRef<RNText, TextProps>(function Text(
+export const Text = forwardRef<React.ComponentRef<typeof RNText>, TextProps>(function Text(
   { variant = "body", color = "primary", align, style, ...rest },
   ref,
 ) {

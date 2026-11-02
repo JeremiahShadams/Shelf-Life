@@ -9,10 +9,7 @@
  * Loading and disabled are policy of this component, not per-screen code.
  */
 
-import {
-  forwardRef,
-  type ReactNode,
-} from "react";
+import { forwardRef, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -20,7 +17,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import { useTheme } from "../../theme";
+import { useTheme } from "../../../theme";
 import { Text } from "./Text";
 
 export type ButtonVariant = "primary" | "accent" | "secondary" | "ghost" | "danger";
@@ -39,7 +36,7 @@ export type ButtonProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export const Button = forwardRef<import("react-native").View, ButtonProps>(function Button(
+export const Button = forwardRef<React.ComponentRef<typeof Pressable>, ButtonProps>(function Button(
   {
     label,
     onPress,
@@ -89,6 +86,7 @@ export const Button = forwardRef<import("react-native").View, ButtonProps>(funct
       onPress={onPress}
       disabled={inactive}
       style={({ pressed }) => [
+        styles.base,
         {
           height: small ? layout.buttonHeightSmall : layout.buttonHeight,
           backgroundColor: bg,
@@ -99,7 +97,6 @@ export const Button = forwardRef<import("react-native").View, ButtonProps>(funct
           opacity: inactive ? 0.45 : pressed && !swapsSurface ? 0.72 : 1,
         },
         pressed && swapsSurface && { backgroundColor: colors.surfacePressed },
-        styles.base,
         block && styles.block,
         style,
       ]}
