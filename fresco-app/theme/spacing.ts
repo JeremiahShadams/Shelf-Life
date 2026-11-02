@@ -25,6 +25,7 @@ export const layout = {
 
   buttonHeight: 52, // primary/secondary CTA height
   buttonHeightSmall: 44, // == tapTarget for compact actions
+  inputHeight: 48,
 
   tapTarget: 44, // Apple minimum hit area
   cameraButton: 72, // big Scan button on home
