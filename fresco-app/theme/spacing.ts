@@ -23,6 +23,9 @@ export const layout = {
   navBarHeight: 56,
   navItemMaxWidth: 96,
 
+  buttonHeight: 52, // primary/secondary CTA height
+  buttonHeightSmall: 44, // == tapTarget for compact actions
+
   tapTarget: 44, // Apple minimum hit area
   cameraButton: 72, // big Scan button on home
 } as const;
