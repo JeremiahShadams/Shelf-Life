@@ -86,6 +86,28 @@ with httpx.Client(base_url=BASE, timeout=60) as c:
         "username": "x", "email": "bad", "password": "short"})
     check("Register weak/invalid input rejected", r.status_code in (400, 409, 422), str(r.status_code))
 
+    for pw in ("abcdefgh", "123456789"):
+        r = c.post("/api/auth/register", json={
+            "username": "pwtest_" + pw[:4], "email": f"pw{pw}@example.com", "password": pw})
+        check(f"Password policy rejects single-class password ({pw[:4]}...)",
+              r.status_code == 422, str(r.status_code))
+
+    # 4.7: production boot must refuse the placeholder secret key
+    import sys as _sys, importlib
+    _sys.path.insert(0, ".")
+    cfg = importlib.import_module("app.config")
+    try:
+        cfg.Settings(_env_file=None, debug=False)
+        check("SECRET_KEY guard blocks production-default key", False, "no ValueError raised")
+    except Exception as e:
+        check("SECRET_KEY guard blocks production-default key",
+              "SECRET_KEY" in str(e), type(e).__name__)
+    try:
+        cfg.Settings(_env_file=None, debug=False, secret_key="a" * 32)
+        check("Settings with real key + debug=False boots", True)
+    except Exception as e:
+        check("Settings with real key + debug=False boots", False, type(e).__name__)
+
     H = {"Authorization": f"Bearer {token}"}
 
     # bad tokens

@@ -7,6 +7,7 @@ Pydantic handles serialization, validation, and API documentation.
 
 from datetime import datetime
 from enum import Enum
+import re
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -314,9 +315,23 @@ class UserRegister(BaseModel):
         examples=["john@example.com"],
     )
     password: str = Field(
-        ..., min_length=6, max_length=128,
-        description="Password (min 6 characters)",
+        ..., min_length=8, max_length=128,
+        description="Password (min 8 chars, at least one letter and one digit)",
     )
+
+    @field_validator("password")
+    @classmethod
+    def password_policy(cls, v: str) -> str:
+        """
+        Real password policy: 8+ chars with at least one letter and one digit.
+        Symbols remain optional — length and two character classes balance
+        security against a consumer UX that people actually complete.
+        """
+        if not re.search(r"[A-Za-z]", v):
+            raise ValueError("Password must contain at least one letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one digit")
+        return v
 
 
 class UserLogin(BaseModel):

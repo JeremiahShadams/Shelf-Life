@@ -9,7 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -50,6 +50,21 @@ class Settings(BaseSettings):
     # --- Security ---
     secret_key: str = "dev-secret-key-change-in-production"
     access_token_expire_minutes: int = 30
+
+    @model_validator(mode="after")
+    def guard_production_secrets(self) -> "Settings":
+        """
+        A JWT signed with the placeholder key is trivially forgeable — anyone
+        who reads the open-source repo can mint tokens for any user. Refuse
+        to boot in production (debug off) until a real key is provided.
+        """
+        if not self.debug and self.secret_key == "dev-secret-key-change-in-production":
+            raise ValueError(
+                "SECRET_KEY is unset or still the development default while "
+                "debug=False. Set SECRET_KEY in the environment before "
+                "running in production."
+            )
+        return self
 
     # --- File Uploads ---
     upload_dir: str = "uploads"
