@@ -248,17 +248,6 @@ class CompatibilityResponse(BaseModel):
 # Notification Schemas
 # ============================================
 
-class NotificationResponse(BaseModel):
-    """Schema for notification in API responses."""
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    inventory_id: int
-    message: str
-    notify_at: datetime
-    sent: bool
-
-
 # ============================================
 # General Schemas
 # ============================================
