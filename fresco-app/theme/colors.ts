@@ -13,8 +13,10 @@ export const light = {
 
   primary: "#1C1C1C", // primary action (buttons, key CTA)
   accent: "#2F9E44", // fresh green — sparingly: freshness, success
+  onAccent: "#FFFFFF", // text/icon sitting on accent green
   accentSoft: "#E6F4EA", // 8% green tint for subtle backgrounds
   warning: "#E5A100",
+  warningSoft: "#FEF9E7",
   danger: "#D14343",
   dangerSoft: "#FBEAEA",
 
@@ -37,8 +39,10 @@ export const dark = {
 
   primary: "#F5F5F5", // inverted: primary action is near-white
   accent: "#4CAF50",
+  onAccent: "#0F0F0F",
   accentSoft: "#122815",
   warning: "#F0B429",
+  warningSoft: "#2C2410",
   danger: "#E05252",
   dangerSoft: "#2C1414",
 

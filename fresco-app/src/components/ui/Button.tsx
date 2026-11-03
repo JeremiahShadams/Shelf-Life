@@ -9,7 +9,7 @@
  * Loading and disabled are policy of this component, not per-screen code.
  */
 
-import { forwardRef, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -36,20 +36,17 @@ export type ButtonProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export const Button = forwardRef<React.ComponentRef<typeof Pressable>, ButtonProps>(function Button(
-  {
-    label,
-    onPress,
-    variant = "primary",
-    small = false,
-    block = false,
-    loading = false,
-    disabled = false,
-    leading,
-    style,
-  },
-  ref,
-) {
+export function Button({
+  label,
+  onPress,
+  variant = "primary",
+  small = false,
+  block = false,
+  loading = false,
+  disabled = false,
+  leading,
+  style,
+}: ButtonProps) {
   const theme = useTheme();
   const { colors, spacing, radius, layout, borders } = theme;
 
@@ -70,7 +67,7 @@ export const Button = forwardRef<React.ComponentRef<typeof Pressable>, ButtonPro
     variant === "primary"
       ? colors.background
       : variant === "accent"
-        ? "#FFFFFF"
+        ? colors.onAccent
         : variant === "danger"
           ? colors.danger
           : colors.primary;
@@ -80,7 +77,6 @@ export const Button = forwardRef<React.ComponentRef<typeof Pressable>, ButtonPro
 
   return (
     <Pressable
-      ref={ref}
       accessibilityRole="button"
       accessibilityState={{ disabled: inactive }}
       onPress={onPress}
@@ -116,7 +112,7 @@ export const Button = forwardRef<React.ComponentRef<typeof Pressable>, ButtonPro
       )}
     </Pressable>
   );
-});
+}
 
 const styles = StyleSheet.create({
   base: {

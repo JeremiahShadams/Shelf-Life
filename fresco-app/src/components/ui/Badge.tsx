@@ -40,7 +40,7 @@ export function Badge({ label, variant, daysLeft, style }: BadgeProps) {
     resolvedVariant === "danger"
       ? colors.dangerSoft
       : resolvedVariant === "warning"
-        ? (theme.dark ? "#2C2410" : "#FEF9E7")
+        ? colors.warningSoft
         : resolvedVariant === "accent"
           ? colors.accentSoft
           : colors.surfacePressed;

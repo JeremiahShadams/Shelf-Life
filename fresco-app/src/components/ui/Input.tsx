@@ -4,7 +4,7 @@
  * The error string renders under the field in the danger color.
  */
 
-import { forwardRef, useState } from "react";
+import { useState } from "react";
 import {
   TextInput,
   View,
@@ -22,10 +22,7 @@ export type InputProps = TextInputProps & {
   style?: StyleProp<ViewStyle>;
 };
 
-export const Input = forwardRef<React.ComponentRef<typeof TextInput>, InputProps>(function Input(
-  { label, error, hint, style, onFocus, onBlur, ...rest },
-  ref,
-) {
+export function Input({ label, error, hint, style, onFocus, onBlur, ...rest }: InputProps) {
   const theme = useTheme();
   const { colors, spacing, radius, borders, layout } = theme;
   const [focused, setFocused] = useState(false);
@@ -45,7 +42,6 @@ export const Input = forwardRef<React.ComponentRef<typeof TextInput>, InputProps
       )}
 
       <TextInput
-        ref={ref}
         placeholderTextColor={colors.textTertiary}
         onFocus={(e) => {
           setFocused(true);
@@ -81,4 +77,4 @@ export const Input = forwardRef<React.ComponentRef<typeof TextInput>, InputProps
       ) : null}
     </View>
   );
-});
+}

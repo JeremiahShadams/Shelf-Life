@@ -4,7 +4,6 @@
  * so the typographic scale can't drift. No ad-hoc sizes or weights.
  */
 
-import { forwardRef } from "react";
 import { Text as RNText, type TextProps as RNTextProps, type TextStyle } from "react-native";
 import { useTheme, type TextVariant } from "../../../theme";
 
@@ -25,15 +24,11 @@ const colorMap = {
   danger: "danger",
 } as const;
 
-export const Text = forwardRef<React.ComponentRef<typeof RNText>, TextProps>(function Text(
-  { variant = "body", color = "primary", align, style, ...rest },
-  ref,
-) {
+export function Text({ variant = "body", color = "primary", align, style, ...rest }: TextProps) {
   const theme = useTheme();
 
   return (
     <RNText
-      ref={ref}
       {...rest}
       style={[
         theme.text[variant],
@@ -43,4 +38,4 @@ export const Text = forwardRef<React.ComponentRef<typeof RNText>, TextProps>(fun
       ]}
     />
   );
-});
+}

@@ -5,7 +5,7 @@
  * Pass onPress to make the whole card tappable (list rows).
  */
 
-import { forwardRef, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { Platform, Pressable, View, type StyleProp, type ViewStyle } from "react-native";
 import { useTheme } from "../../../theme";
 
@@ -20,10 +20,14 @@ export type CardProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export const Card = forwardRef<React.ComponentRef<typeof View>, CardProps>(function Card(
-  { children, floating = false, plain = false, onPress, disabled = false, style },
-  ref,
-) {
+export function Card({
+  children,
+  floating = false,
+  plain = false,
+  onPress,
+  disabled = false,
+  style,
+}: CardProps) {
   const theme = useTheme();
   const { colors, spacing, radius, borders, elevation } = theme;
 
@@ -41,22 +45,16 @@ export const Card = forwardRef<React.ComponentRef<typeof View>, CardProps>(funct
 
   if (onPress) {
     return (
-      <View ref={ref}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onPress}
-          disabled={disabled}
-          style={({ pressed }) => [{ opacity: pressed ? 0.72 : 1 }, innerStyle]}
-        >
-          {children}
-        </Pressable>
-      </View>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        disabled={disabled}
+        style={({ pressed }) => [{ opacity: pressed ? 0.72 : 1 }, innerStyle]}
+      >
+        {children}
+      </Pressable>
     );
   }
 
-  return (
-    <View ref={ref} style={innerStyle}>
-      {children}
-    </View>
-  );
-});
+  return <View style={innerStyle}>{children}</View>;
+}
