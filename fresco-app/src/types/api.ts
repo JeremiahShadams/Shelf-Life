@@ -93,7 +93,7 @@ export interface ScanResult {
   best_storage: StorageMethod;
   storage_tip: string;
   ethylene_note: string | null;
-  compatibility_warnings: Array<Record<string, unknown>>;
+  compatibility_warnings: Record<string, unknown>[];
   image_path: string | null;
 }
 

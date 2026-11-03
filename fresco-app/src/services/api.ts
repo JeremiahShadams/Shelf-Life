@@ -1,140 +1,82 @@
 /**
- * Fresco — API Service
- * Central typed communication layer between native app and FastAPI backend.
+ * Fresco — API client
+ * Thin fetch wrapper: JSON in/out, bearer-token injection, and errors
+ * normalized to ApiError (status + human message) so screens and TanStack
+ * Query never see raw Response objects.
  */
 
-import { useAuthStore } from "../stores/authStore";
-import type {
-  AuthResponse,
-  InventoryItem,
-  InventoryListResponse,
-  NotificationListResponse,
-  ScanResult,
-  StorageMethod,
-} from "../types";
+const API_URL = (process.env as { EXPO_PUBLIC_API_URL?: string }).EXPO_PUBLIC_API_URL
+  ?? "http://localhost:8000";
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://127.0.0.1:8000";
-
-class ApiError extends Error {
+export class ApiError extends Error {
+  /** HTTP status, or 0 for network failures (server unreachable). */
   status: number;
-  constructor(message: string, status: number) {
+
+  constructor(status: number, message: string) {
     super(message);
-    this.status = status;
     this.name = "ApiError";
+    this.status = status;
   }
 }
 
-async function request<T>(
-  endpoint: string,
-  options: RequestInit = {},
-  isFormData = false,
-): Promise<T> {
-  const token = useAuthStore.getState().token;
+/** FastAPI's `detail` can be a string or a validation-error array. */
+function detailToMessage(detail: unknown): string {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const first = detail[0] as { msg?: string; loc?: unknown[] } | undefined;
+    if (first?.msg) return first.msg;
+  }
+  return "Something went wrong. Please try again.";
+}
+
+type RequestOptions = {
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  token?: string | null;
+  body?: unknown;
+};
+
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {};
+  if (options.body !== undefined) headers["Content-Type"] = "application/json";
+  if (options.token) headers["Authorization"] = `Bearer ${options.token}`;
 
-  if (!isFormData) {
-    headers["Content-Type"] = "application/json";
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method: options.method ?? "GET",
+      headers,
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    });
+  } catch {
+    // fetch only throws on network-level failures (DNS, refused, offline)
+    throw new ApiError(0, "Can't reach the server. Check your connection.");
   }
 
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      ...headers,
-      ...(options.headers as Record<string, string>),
-    },
-  });
-
-  if (!response.ok) {
-    let errorMsg = `Request failed: ${response.statusText}`;
+  if (!res.ok) {
+    let detail: unknown = null;
     try {
-      const errJson = await response.json();
-      errorMsg = errJson.detail || errJson.message || errorMsg;
+      const json = (await res.json()) as { detail?: unknown };
+      detail = json.detail ?? null;
     } catch {
-      // ignore
+      // non-JSON error body — fall through to the generic message
     }
-    throw new ApiError(errorMsg, response.status);
+    throw new ApiError(res.status, detailToMessage(detail));
   }
 
-  return response.json();
+  // 204/no-content responses (none today, but delete paths could become them)
+  if (res.status === 204) return undefined as T;
+
+  return (await res.json()) as T;
 }
 
 export const api = {
-  // Auth
-  async login(email: string, password: string): Promise<AuthResponse> {
-    return request<AuthResponse>("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-  },
-
-  async register(username: string, email: string, password: string): Promise<AuthResponse> {
-    return request<AuthResponse>("/api/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ username, email, password }),
-    });
-  },
-
-  // Inventory / Fridge
-  async getInventory(sortBy = "expiry"): Promise<InventoryListResponse> {
-    return request<InventoryListResponse>(`/api/inventory/?sort_by=${sortBy}`);
-  },
-
-  async addInventoryItem(data: {
-    fruit_id: number;
-    freshness_score: number;
-    storage_method: StorageMethod;
-    quantity?: number;
-    notes?: string;
-  }): Promise<InventoryItem> {
-    return request<InventoryItem>("/api/inventory/", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  },
-
-  async updateInventoryItem(
-    id: number,
-    data: {
-      storage_method?: StorageMethod;
-      quantity?: number;
-      notes?: string;
-      is_consumed?: boolean;
-    },
-  ): Promise<InventoryItem> {
-    return request<InventoryItem>(`/api/inventory/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
-  },
-
-  async deleteInventoryItem(id: number): Promise<{ message: string }> {
-    return request<{ message: string }>(`/api/inventory/${id}`, {
-      method: "DELETE",
-    });
-  },
-
-  // Notifications
-  async getNotifications(): Promise<NotificationListResponse> {
-    return request<NotificationListResponse>("/api/notifications");
-  },
-
-  // AI Scan
-  async scanImage(fileUri: string, filename = "scan.jpg"): Promise<ScanResult> {
-    const formData = new FormData();
-    formData.append("image", {
-      uri: fileUri,
-      name: filename,
-      type: "image/jpeg",
-    } as unknown as Blob);
-
-    return request<ScanResult>("/api/scan/", {
-      method: "POST",
-      body: formData,
-    }, true);
-  },
+  get: <T>(path: string, token?: string | null) => request<T>(path, { method: "GET", token }),
+  post: <T>(path: string, body: unknown, token?: string | null) =>
+    request<T>(path, { method: "POST", body, token }),
+  patch: <T>(path: string, body: unknown, token?: string | null) =>
+    request<T>(path, { method: "PATCH", body, token }),
+  delete: <T>(path: string, token?: string | null) =>
+    request<T>(path, { method: "DELETE", token }),
 };
 
+export { API_URL };

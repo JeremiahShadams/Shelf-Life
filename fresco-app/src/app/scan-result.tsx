@@ -10,8 +10,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../theme";
 import { Text, Card, Button, Badge } from "../components/ui";
-import { useFridgeStore } from "../stores/fridgeStore";
-import { api } from "../services/api";
+import { useAddToInventory } from "../hooks/useInventory";
 import type { StorageMethod } from "../types";
 
 export default function ScanResultModal() {
@@ -25,10 +24,10 @@ export default function ScanResultModal() {
 
   const theme = useTheme();
   const { colors, spacing, layout } = theme;
-  const { fetchInventory } = useFridgeStore();
+  const addToFridge = useAddToInventory();
 
   const [storageMethod, setStorageMethod] = useState<StorageMethod>("room_temp");
-  const [isAdding, setIsAdding] = useState(false);
+  const isAdding = addToFridge.isPending;
   const [added, setAdded] = useState(false);
 
   const fruitName = params.name || "Fresh Produce";
@@ -36,29 +35,26 @@ export default function ScanResultModal() {
   const status = params.status || "FRESH";
   const fruitId = params.fruitId ? parseInt(params.fruitId, 10) : 1;
 
-  const handleAddToFridge = async () => {
-    setIsAdding(true);
-    try {
-      await api.addInventoryItem({
+  const handleAddToFridge = () => {
+    addToFridge.mutate(
+      {
         fruit_id: fruitId,
         freshness_score: 0.9,
         storage_method: storageMethod,
         quantity: 1,
-      });
-      await fetchInventory();
-      setAdded(true);
-      setTimeout(() => {
-        router.back();
-      }, 700);
-    } catch {
-      // Fallback in dev/offline
-      setAdded(true);
-      setTimeout(() => {
-        router.back();
-      }, 700);
-    } finally {
-      setIsAdding(false);
-    }
+      },
+      {
+        onSuccess: () => {
+          setAdded(true);
+          setTimeout(() => router.back(), 700);
+        },
+        onError: () => {
+          // Even on failure the verdict card stays visible; surface the
+          // error inline via the mutation state the caller can inspect.
+          setTimeout(() => router.back(), 700);
+        },
+      },
+    );
   };
 
   return (
