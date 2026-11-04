@@ -7,7 +7,7 @@
 
 import { create } from "zustand";
 
-export type FridgeFilter = "all" | "eat_first" | "fresh";
+export type FridgeFilter = "all" | "eat_first" | "fresh" | "expired";
 
 type FridgeState = {
   filter: FridgeFilter;

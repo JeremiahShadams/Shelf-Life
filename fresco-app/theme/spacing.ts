@@ -1,61 +1,81 @@
 /**
- * Fresco — Spacing & Layout
- * 8pt system. Only these values, nothing between them.
- * Screen padding is always 20 (mobile-first, generous gutters).
- * Cards: border 1px + optional very soft shadow (iOS only — shadows look muddy on Android).
+ * FRESCO — Uber Base Spacing & Layout System
+ * 4px/8px grid system with Uber scale.
  */
 
 export const spacing = {
-  xs: 4,
-  s: 8,
-  m: 16,
-  l: 24,
-  xl: 32,
-  xxl: 40,
+  xxs: 4,
+  xs: 8,
+  s: 12,
+  m: 16, // Default card & element padding
+  l: 20, // Mobile container horizontal padding (px-5)
+  xl: 24,
+  xxl: 32,
+  huge: 48,
 } as const;
 
 export const layout = {
-  screenPadding: 20, // horizontal page gutter — never deviate
-  cardPadding: 16,
-  listItemGap: 12,
-  sectionGap: 24, // vertical space between content sections
+  screenPadding: 20, // 20px (px-5) container padding on mobile
+  cardPadding: 16, // 16px (p-4)
+  headerHeight: 56,
+  navBarHeight: 80,
+  safeAreaBottom: 34,
 
-  navBarHeight: 56,
-  navItemMaxWidth: 96,
+  buttonHeight: 56, // 56px (h-14) primary/secondary button
+  buttonHeightSmall: 40,
+  inputHeight: 52,
 
-  buttonHeight: 52, // primary/secondary CTA height
-  buttonHeightSmall: 44, // == tapTarget for compact actions
-  inputHeight: 48,
-
-  tapTarget: 44, // Apple minimum hit area
-  cameraButton: 72, // big Scan button on home
+  fabSize: 56, // 56px floating action button
+  iconButtonSize: 44,
+  tapTarget: 44,
 } as const;
 
 export const radius = {
-  card: 16,
-  button: 14,
+  xs: 4,
+  badge: 999, // Pill shape
+  sm: 8,
+  card: 12, // 12px (rounded-xl)
+  button: 12, // 12px (rounded-xl)
   input: 12,
-  badge: 999, // pill
-  sheet: 24, // bottom sheets / scan-result card
+  modal: 16, // 16px (rounded-2xl)
+  sheet: 24, // 24px (rounded-t-3xl)
+  full: 9999,
 } as const;
 
 export const borders = {
   hairline: 1,
   strong: 1.5,
+  accentStrip: 4, // 4px vertical status border on card left
 } as const;
 
-/** Very soft shadow. Use on floating elements only (cards on top of scroll, sheets, FAB). */
+/** Subtle, functional Uber-style shadows */
 export const elevation = {
   card: {
     shadowColor: "#000000",
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  floating: {
+  uber: {
     shadowColor: "#000000",
     shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  sheet: {
+    shadowColor: "#000000",
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 12,
+  },
+  modal: {
+    shadowColor: "#000000",
+    shadowOpacity: 0.25,
+    shadowRadius: 32,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 16,
   },
 } as const;

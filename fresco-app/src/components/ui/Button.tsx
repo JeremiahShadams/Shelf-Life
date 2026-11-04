@@ -1,12 +1,10 @@
 /**
- * Fresco — Button
- * ONE primary action per screen. Variants enforce hierarchy:
- *   primary   — the screen's single main action (fills, inverted color)
- *   accent    — the main action only if it means "use/scan now" (green)
- *   secondary — supporting actions (outlined)
- *   ghost     — tertiary/quiet actions (text only)
- *   danger    — destructive actions, always confirmed first
- * Loading and disabled are policy of this component, not per-screen code.
+ * FRESCO — Uber Base Button Primitive
+ * Core Rules:
+ *   - Primary: Solid Black (#000000) with White (#FFFFFF) text
+ *   - Secondary: Light Gray (#F3F3F3) with Black text & subtle border
+ *   - Height: 56px (h-14), rounded-xl (12px)
+ *   - Active state: 98% scale for tactile feedback
  */
 
 import { type ReactNode } from "react";
@@ -14,21 +12,20 @@ import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
+  View,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
 import { useTheme } from "../../../theme";
 import { Text } from "./Text";
 
-export type ButtonVariant = "primary" | "accent" | "secondary" | "ghost" | "danger";
+export type ButtonVariant = "primary" | "secondary" | "accent" | "ghost" | "danger";
 
 export type ButtonProps = {
   label: string;
   onPress: () => void;
   variant?: ButtonVariant;
-  /** Compact height (44pt). */
   small?: boolean;
-  /** Stretch to available width. */
   block?: boolean;
   loading?: boolean;
   disabled?: boolean;
@@ -41,39 +38,40 @@ export function Button({
   onPress,
   variant = "primary",
   small = false,
-  block = false,
+  block = true,
   loading = false,
   disabled = false,
   leading,
   style,
 }: ButtonProps) {
   const theme = useTheme();
-  const { colors, spacing, radius, layout, borders } = theme;
+  const { colors, spacing, radius, layout } = theme;
 
   const inactive = disabled || loading;
 
   const bg =
     variant === "primary"
       ? colors.primary
-      : variant === "accent"
-        ? colors.accent
-        : variant === "danger"
-          ? colors.dangerSoft
-          : variant === "secondary"
-            ? colors.surface
+      : variant === "secondary"
+        ? colors.secondaryAction
+        : variant === "accent"
+          ? colors.accent
+          : variant === "danger"
+            ? colors.statusUrgentSoft
             : "transparent";
 
   const fg =
     variant === "primary"
-      ? colors.background
-      : variant === "accent"
-        ? colors.onAccent
-        : variant === "danger"
-          ? colors.danger
-          : colors.primary;
+      ? colors.primaryText
+      : variant === "secondary"
+        ? colors.secondaryActionText
+        : variant === "accent"
+          ? colors.onAccent
+          : variant === "danger"
+            ? colors.statusUrgent
+            : colors.textPrimary;
 
-  // Primary/accent dim on press (fg stays correct); the rest swap surface.
-  const swapsSurface = variant === "secondary" || variant === "ghost" || variant === "danger";
+  const hasBorder = variant === "secondary";
 
   return (
     <Pressable
@@ -87,28 +85,32 @@ export function Button({
           height: small ? layout.buttonHeightSmall : layout.buttonHeight,
           backgroundColor: bg,
           paddingHorizontal: small ? spacing.m : spacing.l,
-          borderRadius: radius.button,
-          borderWidth: variant === "secondary" ? borders.hairline : 0,
-          borderColor: colors.borderStrong,
-          opacity: inactive ? 0.45 : pressed && !swapsSurface ? 0.72 : 1,
+          borderRadius: small ? radius.sm : radius.button,
+          borderWidth: hasBorder ? 1 : 0,
+          borderColor: colors.border,
+          opacity: inactive ? 0.45 : 1,
+          transform: [{ scale: pressed && !inactive ? 0.98 : 1 }],
         },
-        pressed && swapsSurface && { backgroundColor: colors.surfacePressed },
         block && styles.block,
         style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={fg} />
+        <ActivityIndicator color={fg} size="small" />
       ) : (
-        <>
-          {leading != null && <>{leading} </>}
+        <View style={styles.contentRow}>
+          {leading != null && <View style={{ marginRight: spacing.xs }}>{leading}</View>}
           <Text
-            variant={small ? "caption" : "headline"}
-            style={{ color: fg, letterSpacing: 0.2 }}
+            variant={small ? "caption" : "body"}
+            style={{
+              color: fg,
+              fontWeight: "700",
+              letterSpacing: -0.2,
+            }}
           >
             {label}
           </Text>
-        </>
+        </View>
       )}
     </Pressable>
   );
@@ -120,7 +122,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexDirection: "row",
   },
+  contentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   block: {
     alignSelf: "stretch",
+    width: "100%",
   },
 });

@@ -32,15 +32,15 @@ function TabIcon({ outline, filled, focused, color, size }: TabIconProps) {
 }
 
 function ScanIcon(args: IconProps) {
-  return <TabIcon outline="camera-outline" filled="camera" {...args} />;
+  return <TabIcon outline="scan-outline" filled="scan" {...args} />;
 }
-function FridgeIcon(args: IconProps) {
-  return <TabIcon outline="nutrition-outline" filled="nutrition" {...args} />;
+function InventoryIcon(args: IconProps) {
+  return <TabIcon outline="list-outline" filled="list" {...args} />;
 }
-function IdeasIcon(args: IconProps) {
-  return <TabIcon outline="bulb-outline" filled="bulb" {...args} />;
+function StorageIcon(args: IconProps) {
+  return <TabIcon outline="swap-horizontal-outline" filled="swap-horizontal" {...args} />;
 }
-function ProfileIcon(args: IconProps) {
+function AccountIcon(args: IconProps) {
   return <TabIcon outline="person-outline" filled="person" {...args} />;
 }
 
@@ -52,17 +52,19 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: colors.textPrimary,
         tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle: {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
           borderTopWidth: theme.borders.hairline,
-          height: layout.navBarHeight + 20, // safe-area padding baked in by RN
+          height: 64,
+          paddingBottom: 8,
+          paddingTop: 8,
         },
         tabBarLabelStyle: {
-          fontSize: theme.text.micro.fontSize,
-          fontWeight: "500",
+          fontSize: 11,
+          fontWeight: "600",
         },
       }}
     >
@@ -76,22 +78,22 @@ export default function TabLayout() {
       <Tabs.Screen
         name="fridge"
         options={{
-          title: "Fridge",
-          tabBarIcon: FridgeIcon,
+          title: "Inventory",
+          tabBarIcon: InventoryIcon,
         }}
       />
       <Tabs.Screen
         name="ideas"
         options={{
-          title: "Ideas",
-          tabBarIcon: IdeasIcon,
+          title: "Storage",
+          tabBarIcon: StorageIcon,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
-          tabBarIcon: ProfileIcon,
+          title: "Account",
+          tabBarIcon: AccountIcon,
         }}
       />
     </Tabs>

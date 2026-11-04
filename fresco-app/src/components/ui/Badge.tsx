@@ -1,58 +1,74 @@
 /**
- * Fresco — Badge (Days-Left & Status Pill)
- * Encodes the single legal semantic color mapping:
- *   days > 4      → textSecondary (calm, nothing to do)
- *   days 2–4      → warning (eat soon)
- *   days 0–1      → danger (eat today / expired)
+ * FRESCO — Uber Base Status Badge & Summary Pill
+ * - Dot indicator (6px circle)
+ * - Uppercase tracking-wider label
+ * - Soft status background with high contrast text
  */
 
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { useTheme } from "../../../theme";
 import { Text } from "./Text";
 
-export type BadgeVariant = "calm" | "warning" | "danger" | "accent";
+export type BadgeStatus = "urgent" | "warning" | "success" | "expired" | "info" | "calm";
+export type BadgeVariant = BadgeStatus;
 
 export type BadgeProps = {
   label: string;
-  variant?: BadgeVariant;
-  /** Automatically pick variant from numeric days left */
+  status?: BadgeStatus;
   daysLeft?: number;
+  showDot?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
-export function Badge({ label, variant, daysLeft, style }: BadgeProps) {
+export function Badge({
+  label,
+  status,
+  daysLeft,
+  showDot = true,
+  style,
+}: BadgeProps) {
   const theme = useTheme();
   const { colors, spacing, radius } = theme;
 
-  // Resolve variant from daysLeft if provided
-  let resolvedVariant: BadgeVariant = variant ?? "calm";
+  // Resolve status from daysLeft if provided
+  let resolvedStatus: BadgeStatus = status ?? "success";
   if (daysLeft !== undefined) {
-    if (daysLeft <= 1) {
-      resolvedVariant = "danger";
+    if (daysLeft <= 0) {
+      resolvedStatus = "expired";
+    } else if (daysLeft <= 1) {
+      resolvedStatus = "urgent";
     } else if (daysLeft <= 4) {
-      resolvedVariant = "warning";
+      resolvedStatus = "warning";
     } else {
-      resolvedVariant = "calm";
+      resolvedStatus = "success";
     }
   }
 
-  const bg =
-    resolvedVariant === "danger"
-      ? colors.dangerSoft
-      : resolvedVariant === "warning"
-        ? colors.warningSoft
-        : resolvedVariant === "accent"
-          ? colors.accentSoft
-          : colors.surfacePressed;
+  // Color mapping per Uber Base spec
+  let bg = colors.statusSuccessSoft;
+  let fg = colors.statusSuccess;
 
-  const fg =
-    resolvedVariant === "danger"
-      ? colors.danger
-      : resolvedVariant === "warning"
-        ? colors.warning
-        : resolvedVariant === "accent"
-          ? colors.accent
-          : colors.textSecondary;
+  switch (resolvedStatus) {
+    case "urgent":
+      bg = colors.statusUrgentSoft;
+      fg = colors.statusUrgent;
+      break;
+    case "warning":
+      bg = colors.statusWarningSoft;
+      fg = colors.statusWarning;
+      break;
+    case "expired":
+    case "info":
+    case "calm":
+      bg = colors.statusInfoSoft;
+      fg = colors.statusInfo;
+      break;
+    case "success":
+    default:
+      bg = colors.statusSuccessSoft;
+      fg = colors.statusSuccess;
+      break;
+  }
 
   return (
     <View
@@ -62,12 +78,31 @@ export function Badge({ label, variant, daysLeft, style }: BadgeProps) {
           backgroundColor: bg,
           borderRadius: radius.badge,
           paddingHorizontal: spacing.s,
-          paddingVertical: spacing.xs,
+          paddingVertical: spacing.xxs + 1,
         },
         style,
       ]}
     >
-      <Text variant="micro" style={{ color: fg, fontWeight: "600" }}>
+      {showDot && (
+        <View
+          style={[
+            styles.dot,
+            {
+              backgroundColor: fg,
+              marginRight: spacing.xxs + 1,
+            },
+          ]}
+        />
+      )}
+      <Text
+        variant="label"
+        style={{
+          color: fg,
+          fontSize: 10,
+          fontWeight: "700",
+          letterSpacing: 0.8,
+        }}
+      >
         {label}
       </Text>
     </View>
@@ -81,5 +116,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
 });
-
