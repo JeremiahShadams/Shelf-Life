@@ -1,166 +1,236 @@
 /**
- * Fresco — Scan Result Modal Screen
- * Displays identified food verdict, freshness status, estimated days,
- * and one-tap "Add to My Fridge" action.
+ * Fresco — Scan result
+ * Renders the backend's unified verdict directly (no client-side guessing):
+ * status + days, the recommendation, per-storage estimates, and the domain
+ * storage tip. One primary action: add to the fridge.
  */
 
-import { useState } from "react";
-import { StyleSheet, View, ScrollView } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../theme";
-import { Text, Card, Button, Badge } from "../components/ui";
+import { Badge, Button, Card, ErrorState, Text } from "../components/ui";
 import { useAddToInventory } from "../hooks/useInventory";
-import type { StorageMethod } from "../types";
+import type { ScanResult, StorageMethod } from "../types";
 
-export default function ScanResultModal() {
-  const router = useRouter();
-  const params = useLocalSearchParams<{
-    name?: string;
-    days?: string;
-    status?: string;
-    fruitId?: string;
-  }>();
+const STORAGE_OPTIONS: { key: StorageMethod; label: string }[] = [
+  { key: "room_temp", label: "Counter" },
+  { key: "fridge", label: "Fridge" },
+  { key: "freezer", label: "Freezer" },
+];
 
+const STATUS_LABEL: Record<string, string> = {
+  FRESH: "Fresh",
+  EAT_SOON: "Eat soon",
+  EAT_TODAY: "Eat today",
+  SPOILED: "Spoiled",
+};
+
+function formatDays(days: number): string {
+  if (days <= 0) return "No days left";
+  if (days < 1) return "Less than a day";
+  const rounded = Math.round(days);
+  return `~${rounded} ${rounded === 1 ? "day" : "days"}`;
+}
+
+export default function ScanResultScreen() {
   const theme = useTheme();
   const { colors, spacing, layout } = theme;
+  const params = useLocalSearchParams<{ scan?: string }>();
+
+  const result = useMemo<ScanResult | null>(() => {
+    if (!params.scan) return null;
+    try {
+      return JSON.parse(params.scan) as ScanResult;
+    } catch {
+      return null;
+    }
+  }, [params.scan]);
+
   const addToFridge = useAddToInventory();
-
-  const [storageMethod, setStorageMethod] = useState<StorageMethod>("room_temp");
-  const isAdding = addToFridge.isPending;
+  const [storageMethod, setStorageMethod] = useState<StorageMethod>(
+    result?.best_storage ?? "fridge",
+  );
   const [added, setAdded] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
-  const fruitName = params.name || "Fresh Produce";
-  const daysLeft = params.days ? parseFloat(params.days) : 5;
-  const status = params.status || "FRESH";
-  const fruitId = params.fruitId ? parseInt(params.fruitId, 10) : 1;
+  if (result == null) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background }]}>
+        <ErrorState
+          full
+          message="This scan result is no longer available. Scan the item again."
+          retryLabel="Go back"
+          onRetry={() => router.back()}
+        />
+      </View>
+    );
+  }
 
-  const handleAddToFridge = () => {
+  const selectedDays = result.estimated_shelf_life[storageMethod];
+  const statusLabel = STATUS_LABEL[result.status] ?? result.status;
+
+  function handleAdd() {
+    setAddError(null);
     addToFridge.mutate(
       {
-        fruit_id: fruitId,
-        freshness_score: 0.9,
+        fruit_id: result!.fruit.id,
+        freshness_score: result!.freshness_score,
         storage_method: storageMethod,
         quantity: 1,
+        image_path: result!.image_path ?? undefined,
       },
       {
         onSuccess: () => {
           setAdded(true);
-          setTimeout(() => router.back(), 700);
+          setTimeout(() => router.back(), 800);
         },
-        onError: () => {
-          // Even on failure the verdict card stays visible; surface the
-          // error inline via the mutation state the caller can inspect.
-          setTimeout(() => router.back(), 700);
+        onError: (err) => {
+          setAddError(err instanceof Error ? err.message : "Couldn't add that item. Try again.");
         },
       },
     );
-  };
+  }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingHorizontal: layout.screenPadding, paddingVertical: spacing.xl },
-        ]}
+        contentContainerStyle={{
+          paddingHorizontal: layout.screenPadding,
+          paddingTop: spacing.l,
+          paddingBottom: spacing.xxl,
+        }}
       >
-        {/* Dismiss bar */}
         <View style={styles.topBar}>
-          <Text variant="headline">Scan Result</Text>
-          <Button label="Close" variant="ghost" small onPress={() => router.back()} />
+          <Text variant="micro" color="tertiary">
+            SCAN RESULT
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            onPress={() => router.back()}
+            style={styles.closeButton}
+          >
+            <Ionicons name="close" size={22} color={colors.textSecondary} />
+          </Pressable>
         </View>
 
-        {/* Main Verdict Card */}
-        <Card style={{ marginTop: spacing.m, alignItems: "center", paddingVertical: spacing.xl }}>
-          <View
-            style={[
-              styles.iconCircle,
-              { backgroundColor: theme.dark ? colors.surfacePressed : colors.accentSoft },
-            ]}
-          >
-            <Ionicons name="nutrition" size={40} color={colors.accent} />
+        <Text variant="largeTitle" style={{ marginTop: spacing.s }}>
+          {result.fruit.name}
+        </Text>
+        <Text variant="caption" color="secondary" style={{ marginTop: spacing.xs }}>
+          {result.freshness_label} · {Math.round(result.classification_confidence * 100)}% sure
+        </Text>
+
+        <Card floating style={{ marginTop: spacing.l }}>
+          <View style={styles.verdictRow}>
+            <Badge label={statusLabel} daysLeft={result.days_left} />
+            <Text variant="title">{formatDays(result.days_left)}</Text>
           </View>
 
-          <Text variant="largeTitle" style={{ marginTop: spacing.m, textAlign: "center" }}>
-            {fruitName}
-          </Text>
-
-          <View style={{ marginTop: spacing.s }}>
-            <Badge daysLeft={daysLeft} label={`${status} • ~${Math.round(daysLeft)} days left`} />
-          </View>
-
-          <Text
-            variant="caption"
-            color="secondary"
-            style={{ textAlign: "center", marginTop: spacing.m, maxWidth: 280 }}
-          >
-            AI verified high freshness. Optimal storage stretches shelf-life significantly.
+          <Text variant="body" color="secondary" style={{ marginTop: spacing.m }}>
+            {result.recommendation}
           </Text>
         </Card>
 
-        {/* Storage Option Selector */}
-        <View style={{ marginTop: spacing.l }}>
-          <Text variant="micro" color="tertiary" style={{ fontWeight: "600", marginBottom: spacing.xs }}>
-            STORE IN
-          </Text>
-          <Card style={{ gap: spacing.s }}>
-            {(
-              [
-                { method: "room_temp", label: "Counter / Pantry", icon: "home-outline" },
-                { method: "fridge", label: "Refrigerator (+3 days)", icon: "snow-outline" },
-                { method: "freezer", label: "Freezer (Long term)", icon: "cube-outline" },
-              ] as const
-            ).map((opt) => {
-              const selected = storageMethod === opt.method;
-              return (
-                <Button
-                  key={opt.method}
-                  label={opt.label}
-                  variant={selected ? "primary" : "secondary"}
-                  small
-                  block
-                  onPress={() => setStorageMethod(opt.method)}
-                />
-              );
-            })}
-          </Card>
+        <Text
+          variant="micro"
+          color="tertiary"
+          style={{ marginTop: spacing.l, marginBottom: spacing.s }}
+        >
+          STORE IN
+        </Text>
+
+        <View style={[styles.storageRow, { gap: spacing.s }]}>
+          {STORAGE_OPTIONS.map((option) => {
+            const available = result.estimated_shelf_life[option.key] != null;
+            const selected = storageMethod === option.key;
+
+            return (
+              <Button
+                key={option.key}
+                label={option.label}
+                small
+                variant={selected ? "secondary" : "ghost"}
+                disabled={!available}
+                onPress={() => setStorageMethod(option.key)}
+                style={[
+                  styles.storageButton,
+                  !selected && { opacity: 0.55 },
+                ]}
+              />
+            );
+          })}
         </View>
 
-        {/* Action Button */}
-        <View style={{ marginTop: spacing.xl }}>
-          <Button
-            label={added ? "Added to Fridge!" : isAdding ? "Saving..." : "Add to My Fridge"}
-            variant="accent"
-            block
-            loading={isAdding}
-            disabled={added}
-            onPress={handleAddToFridge}
-          />
-        </View>
+        {selectedDays != null && (
+          <Text variant="caption" color="secondary" style={{ marginTop: spacing.s }}>
+            {formatDays(selectedDays)} in the{" "}
+            {storageMethod === "room_temp"
+              ? "counter"
+              : storageMethod === "fridge"
+                ? "fridge"
+                : "freezer"}
+            {storageMethod === result.best_storage ? " · recommended" : ""}
+          </Text>
+        )}
+
+        {result.storage_tip !== "" && (
+          <Card style={{ marginTop: spacing.l }}>
+            <Text variant="micro" color="tertiary">
+              STORAGE TIP
+            </Text>
+            <Text variant="caption" color="secondary" style={{ marginTop: spacing.xs }}>
+              {result.storage_tip}
+            </Text>
+          </Card>
+        )}
+
+        {result.ethylene_note != null && (
+          <Text variant="micro" color="tertiary" style={{ marginTop: spacing.m }}>
+            {result.ethylene_note}
+          </Text>
+        )}
+
+        {addError != null && (
+          <Text variant="caption" color="danger" style={{ marginTop: spacing.m }}>
+            {addError}
+          </Text>
+        )}
+
+        <Button
+          label={added ? "Added to fridge" : "Add to fridge"}
+          block
+          loading={addToFridge.isPending}
+          disabled={added}
+          onPress={handleAdd}
+          style={{ marginTop: spacing.l }}
+        />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scroll: {
-    flexGrow: 1,
-  },
+  screen: { flex: 1 },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: "center",
+  closeButton: {
+    width: 44,
+    height: 44,
+    alignItems: "flex-end",
     justifyContent: "center",
   },
+  verdictRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  storageRow: { flexDirection: "row" },
+  storageButton: { flex: 1 },
 });
-

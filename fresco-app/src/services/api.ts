@@ -33,6 +33,8 @@ type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   token?: string | null;
   body?: unknown;
+  /** Multipart body. Mutually exclusive with `body`. */
+  formData?: FormData;
 };
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -45,7 +47,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     res = await fetch(`${API_URL}${path}`, {
       method: options.method ?? "GET",
       headers,
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      body: options.formData ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined),
     });
   } catch {
     // fetch only throws on network-level failures (DNS, refused, offline)
@@ -77,6 +79,12 @@ export const api = {
     request<T>(path, { method: "PATCH", body, token }),
   delete: <T>(path: string, token?: string | null) =>
     request<T>(path, { method: "DELETE", token }),
+  /**
+   * Multipart upload. Let fetch set Content-Type so the boundary is correct —
+   * never set it manually for FormData.
+   */
+  upload: <T>(path: string, formData: FormData, token?: string | null) =>
+    request<T>(path, { method: "POST", formData, token }),
 };
 
 export { API_URL };
