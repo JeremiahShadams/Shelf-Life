@@ -7,7 +7,8 @@
 
 import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
-import { login as apiLogin, register as apiRegister } from "../services/auth";
+import { ApiError } from "../services/api";
+import { getMe, login as apiLogin, register as apiRegister } from "../services/auth";
 import type { User } from "../types/api";
 
 export type AuthStatus = "idle" | "anon" | "authed";
@@ -31,22 +32,49 @@ async function persist(token: string, user: User): Promise<void> {
   await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
 }
 
+async function clearPersisted(): Promise<void> {
+  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  await SecureStore.deleteItemAsync(USER_KEY);
+}
+
 export const useAuth = create<AuthState>((set) => ({
   status: "idle",
   token: null,
   user: null,
 
   hydrate: async () => {
+    let token: string | null = null;
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
-      const userJson = await SecureStore.getItemAsync(USER_KEY);
-      if (token && userJson) {
-        set({ status: "authed", token, user: JSON.parse(userJson) as User });
-      } else {
+      token = await SecureStore.getItemAsync(TOKEN_KEY);
+      const cachedJson = await SecureStore.getItemAsync(USER_KEY);
+
+      if (!token) {
         set({ status: "anon", token: null, user: null });
+        return;
+      }
+
+      // Validate against the server so an expired/revoked token is caught
+      // at boot instead of failing later on the Fridge screen.
+      try {
+        const user = await getMe(token);
+        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+        set({ status: "authed", token, user });
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          await clearPersisted();
+          set({ status: "anon", token: null, user: null });
+          return;
+        }
+        // Offline or server down: trust the cached identity so the app
+        // still opens; the next successful request re-validates.
+        if (cachedJson) {
+          set({ status: "authed", token, user: JSON.parse(cachedJson) as User });
+        } else {
+          set({ status: "anon", token: null, user: null });
+        }
       }
     } catch {
-      // unreadable storage → treat as signed out, never block the app
+      // Unreadable storage → treat as signed out, never block the app.
       set({ status: "anon", token: null, user: null });
     }
   },
@@ -64,8 +92,7 @@ export const useAuth = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
-    await SecureStore.deleteItemAsync(USER_KEY);
+    await clearPersisted();
     set({ status: "anon", token: null, user: null });
   },
 }));
