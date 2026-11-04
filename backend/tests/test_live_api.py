@@ -110,6 +110,18 @@ with httpx.Client(base_url=BASE, timeout=60) as c:
 
     H = {"Authorization": f"Bearer {token}"}
 
+    # ---------- Auth: /me ----------
+    r = c.get("/api/auth/me", headers=H)
+    check(
+        "GET /api/auth/me returns the current user",
+        r.status_code == 200 and r.json().get("email") == "tester@example.com",
+        f"{r.status_code} {r.text[:80]}",
+    )
+    r = c.get("/api/auth/me")
+    check("GET /api/auth/me rejects anonymous", r.status_code == 401, str(r.status_code))
+    r = c.get("/api/auth/me", headers={"Authorization": "Bearer garbage"})
+    check("GET /api/auth/me rejects bad token", r.status_code == 401, str(r.status_code))
+
     # bad tokens
     r = c.get("/api/inventory/", headers={"Authorization": "Bearer garbage"})
     check("Invalid JWT → 401", r.status_code in (401, 403), str(r.status_code))

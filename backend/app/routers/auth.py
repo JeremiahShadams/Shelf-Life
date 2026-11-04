@@ -6,6 +6,7 @@ Handles user registration and login.
 Endpoints:
     POST /api/auth/register — Create a new account
     POST /api/auth/login    — Login and receive JWT
+    GET  /api/auth/me       — Validate a token and return the current user
 
 Security notes:
     - Passwords stored as bcrypt hashes (never plaintext)
@@ -19,7 +20,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.schema import User
-from app.auth import hash_password, verify_password, create_access_token
+from app.auth import (
+    hash_password,
+    verify_password,
+    create_access_token,
+    get_current_user,
+)
 from app.schemas.schemas import (
     UserRegister,
     UserLogin,
@@ -128,3 +134,25 @@ async def login(
         access_token=token,
         user=UserPublic.model_validate(user),
     )
+
+
+@router.get(
+    "/me",
+    response_model=UserPublic,
+    summary="Current user",
+    description=(
+        "Validate the bearer token and return the authenticated user. "
+        "The mobile app calls this on boot so an expired token is detected "
+        "immediately instead of failing later on a data screen."
+    ),
+)
+async def read_current_user(
+    user: User = Depends(get_current_user),
+):
+    """
+    Token-validation endpoint.
+
+    `get_current_user` already enforces signature, expiry, and user
+    existence, so a 200 here means the stored session is still usable.
+    """
+    return UserPublic.model_validate(user)
