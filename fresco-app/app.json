@@ -33,7 +33,22 @@
           "imageWidth": 76
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Fresco uses your camera to scan produce and check how fresh it is.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Fresco reads the photo you choose so it can identify the produce.",
+          "cameraPermission": "Fresco uses your camera to scan produce and check how fresh it is.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
