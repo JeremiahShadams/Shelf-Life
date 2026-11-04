@@ -13,6 +13,14 @@ import type {
 } from "../types/api";
 
 export function listInventory(token: string): Promise<InventoryListResponse> {
+  if (token === "guest_demo_token") {
+    return Promise.resolve({
+      items: [],
+      total: 0,
+      expiring_soon: 1,
+      expired: 1,
+    });
+  }
   return api.get<InventoryListResponse>("/api/inventory/", token);
 }
 

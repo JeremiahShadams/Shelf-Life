@@ -5,8 +5,22 @@
  * Query never see raw Response objects.
  */
 
-const API_URL = (process.env as { EXPO_PUBLIC_API_URL?: string }).EXPO_PUBLIC_API_URL
-  ?? "http://localhost:8000";
+import Constants from "expo-constants";
+
+function resolveApiUrl(): string {
+  const envUrl = (process.env as { EXPO_PUBLIC_API_URL?: string }).EXPO_PUBLIC_API_URL;
+  if (envUrl) {
+    return envUrl;
+  }
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (hostUri) {
+    const hostIp = hostUri.split(":")[0];
+    return `http://${hostIp}:8000`;
+  }
+  return "http://localhost:8000";
+}
+
+const API_URL = resolveApiUrl();
 
 export class ApiError extends Error {
   /** HTTP status, or 0 for network failures (server unreachable). */

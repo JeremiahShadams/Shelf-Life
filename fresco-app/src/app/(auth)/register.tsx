@@ -25,6 +25,7 @@ export default function RegisterScreen() {
   const theme = useTheme();
   const { spacing, layout, colors } = theme;
   const register = useAuth((s) => s.register);
+  const loginAsGuest = useAuth((s) => s.loginAsGuest);
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -34,6 +35,17 @@ export default function RegisterScreen() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  async function handleGuestLogin() {
+    setSubmitting(true);
+    try {
+      await loginAsGuest();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Couldn't continue as guest.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   function validate(): boolean {
     let ok = true;
@@ -161,6 +173,15 @@ export default function RegisterScreen() {
             loading={submitting}
             onPress={() => void handleSubmit()}
             style={{ marginTop: spacing.l }}
+          />
+
+          <Button
+            label="Explore as Guest"
+            variant="secondary"
+            block
+            disabled={submitting}
+            onPress={() => void handleGuestLogin()}
+            style={{ marginTop: spacing.s }}
           />
 
           <Button

@@ -24,12 +24,24 @@ export default function LoginScreen() {
   const theme = useTheme();
   const { spacing, layout, colors } = theme;
   const login = useAuth((s) => s.login);
+  const loginAsGuest = useAuth((s) => s.loginAsGuest);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  async function handleGuestLogin() {
+    setSubmitting(true);
+    try {
+      await loginAsGuest();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Couldn't continue as guest.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   async function handleSubmit() {
     const trimmedEmail = email.trim();
@@ -120,6 +132,15 @@ export default function LoginScreen() {
             loading={submitting}
             onPress={() => void handleSubmit()}
             style={{ marginTop: spacing.l }}
+          />
+
+          <Button
+            label="Explore as Guest"
+            variant="secondary"
+            block
+            disabled={submitting}
+            onPress={() => void handleGuestLogin()}
+            style={{ marginTop: spacing.s }}
           />
 
           <Button
