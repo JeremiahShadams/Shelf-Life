@@ -53,6 +53,7 @@ export const light = {
   // Overlays
   overlay: "rgba(0, 0, 0, 0.6)",
   scrim: "rgba(0, 0, 0, 0.75)",
+  shadow: "#000000",
 } as const;
 
 export const dark = {
@@ -95,6 +96,7 @@ export const dark = {
 
   overlay: "rgba(0, 0, 0, 0.75)",
   scrim: "rgba(0, 0, 0, 0.85)",
+  shadow: "#000000",
 } as const;
 
 export type ThemeColors = { [K in keyof typeof light]: string };

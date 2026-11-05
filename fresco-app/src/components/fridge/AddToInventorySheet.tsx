@@ -95,6 +95,7 @@ export function AddToInventorySheet({
             styles.sheetContainer,
             {
               backgroundColor: colors.surface,
+              shadowColor: colors.shadow,
               borderTopLeftRadius: radius.sheet,
               borderTopRightRadius: radius.sheet,
             },
@@ -229,7 +230,6 @@ const styles = StyleSheet.create({
   sheetContainer: {
     width: "100%",
     paddingBottom: 24,
-    shadowColor: "#000000",
     shadowOpacity: 0.16,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: -4 },

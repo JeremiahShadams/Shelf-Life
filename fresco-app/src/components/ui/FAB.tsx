@@ -33,6 +33,7 @@ export function FAB({ onPress, accessibilityLabel = "Add item to inventory", sty
           transform: [{ scale: pressed ? 0.94 : 1 }],
         },
         styles.shadow,
+        { shadowColor: colors.shadow },
         style,
       ]}
     >
@@ -47,7 +48,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   shadow: {
-    shadowColor: "#000000",
     shadowOpacity: 0.22,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },

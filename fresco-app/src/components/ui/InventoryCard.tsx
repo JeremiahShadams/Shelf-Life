@@ -39,7 +39,7 @@ export function InventoryCard({
   if (daysLeft <= 0) {
     statusColor = colors.statusUrgent;
     statusText = "EXPIRED";
-  } else if (daysLeft === 1) {
+  } else if (daysLeft <= 1) {
     statusColor = colors.statusUrgent;
     statusText = "DAY LEFT";
   } else if (daysLeft <= 4) {
@@ -49,6 +49,10 @@ export function InventoryCard({
     statusColor = colors.statusSuccess;
     statusText = "DAYS";
   }
+
+  // Live days are fractional (e.g. 0.4 left). Never show "0 DAYS" for an
+  // item that hasn't expired, and never round 1.9 up to a calm "2".
+  const displayDays = daysLeft <= 0 ? 0 : Math.max(1, Math.ceil(daysLeft));
 
   // Format metadata line: e.g. "Fridge · Nightshade · Qty: 2"
   const metaParts: string[] = [];
@@ -86,6 +90,7 @@ export function InventoryCard({
           transform: [{ scale: pressed && onPress ? 0.99 : 1 }],
         },
         styles.shadow,
+        { shadowColor: colors.shadow },
         style,
       ]}
     >
@@ -138,7 +143,7 @@ export function InventoryCard({
               },
             ]}
           >
-            {daysLeft <= 0 ? "0" : Math.round(daysLeft)}
+            {displayDays}
           </Text>
           <Text
             style={[
@@ -196,7 +201,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   shadow: {
-    shadowColor: "#000000",
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
