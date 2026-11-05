@@ -11,10 +11,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../theme";
 import { Badge, Card, EmptyState, ErrorState, Loading, Text } from "../components/ui";
 import { useNotifications } from "../hooks/useNotifications";
+import { parseServerDate } from "../utils/datetime";
 import type { NotificationItem } from "../types/api";
 
 function formatWhen(value: string): string {
-  const date = new Date(value);
+  const date = parseServerDate(value);
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleString(undefined, {
     month: "short",

@@ -17,6 +17,7 @@ import {
   useInventoryItem,
   useUpdateInventoryItem,
 } from "../../hooks/useInventory";
+import { parseServerDate } from "../../utils/datetime";
 import type { ItemStatus, StorageMethod } from "../../types/api";
 
 const STORAGE_OPTIONS: { key: StorageMethod; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -45,7 +46,7 @@ function formatDays(days: number): string {
 }
 
 function formatDate(value: string): string {
-  const date = new Date(value);
+  const date = parseServerDate(value);
   if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
