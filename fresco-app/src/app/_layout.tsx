@@ -65,6 +65,7 @@ export default function RootLayout() {
           <Stack.Screen name="scan-result" options={{ presentation: "modal" }} />
           <Stack.Screen name="add-item" options={{ presentation: "modal" }} />
           <Stack.Screen name="inventory/[id]" />
+          <Stack.Screen name="notifications" />
         </Stack>
       )}
     </QueryClientProvider>

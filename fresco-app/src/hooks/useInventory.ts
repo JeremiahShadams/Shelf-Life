@@ -46,6 +46,8 @@ export function useAddToInventory() {
     mutationFn: (body: InventoryItemCreate) => addToInventory(token as string, body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [INVENTORY_KEY] });
+      // Adding an item schedules an expiry alert in the same transaction.
+      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 }
@@ -59,6 +61,7 @@ export function useUpdateInventoryItem() {
       updateInventoryItem(token as string, itemId, update),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [INVENTORY_KEY] });
+      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 }
@@ -71,6 +74,7 @@ export function useDeleteInventoryItem() {
     mutationFn: (itemId: number) => deleteInventoryItem(token as string, itemId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [INVENTORY_KEY] });
+      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 }

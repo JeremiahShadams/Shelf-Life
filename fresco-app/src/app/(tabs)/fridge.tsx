@@ -31,6 +31,7 @@ import {
   type TabKey,
 } from "../../components/ui";
 import { useInventory } from "../../hooks/useInventory";
+import { useNotifications } from "../../hooks/useNotifications";
 import { useFridgeStore } from "../../stores/fridgeStore";
 import type { InventoryItem } from "../../types/api";
 
@@ -47,6 +48,8 @@ export default function FridgeScreen() {
 
   // Live Inventory Hook
   const inventoryQuery = useInventory();
+  const notifications = useNotifications();
+  const hasAlerts = (notifications.data?.total ?? 0) > 0;
 
   // The server response is the only source of truth — no demo fallback, so
   // an empty account shows the real empty state instead of fake produce.
@@ -109,23 +112,27 @@ export default function FridgeScreen() {
             Inventory
           </Text>
 
-          {/* Notification Bell with Red Dot */}
+          {/* Notification Bell — dot only when alerts exist */}
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Notifications"
-            onPress={() => router.navigate("/profile")}
+            accessibilityLabel={
+              hasAlerts ? `Notifications, ${notifications.data?.total ?? 0} alerts` : "Notifications"
+            }
+            onPress={() => router.push("/notifications")}
             style={styles.bellButton}
           >
             <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
-            <View
-              style={[
-                styles.notificationDot,
-                {
-                  backgroundColor: colors.statusUrgent,
-                  borderColor: colors.background,
-                },
-              ]}
-            />
+            {hasAlerts && (
+              <View
+                style={[
+                  styles.notificationDot,
+                  {
+                    backgroundColor: colors.statusUrgent,
+                    borderColor: colors.background,
+                  },
+                ]}
+              />
+            )}
           </Pressable>
         </View>
 
