@@ -10,6 +10,7 @@ import {
   FlatList,
   Keyboard,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
 } from "react-native";
@@ -137,7 +138,14 @@ export default function AddItemScreen() {
           onScanAnother={addAnother}
         />
       ) : selected != null ? (
-        <View style={{ paddingHorizontal: layout.screenPadding, paddingTop: spacing.m }}>
+        <ScrollView
+          contentContainerStyle={{
+            paddingHorizontal: layout.screenPadding,
+            paddingTop: spacing.m,
+            paddingBottom: spacing.xxl,
+          }}
+          keyboardShouldPersistTaps="handled"
+        >
           <Card>
             <Text variant="headline">{selected.name}</Text>
             <Text variant="caption" color="secondary" style={{ marginTop: spacing.xxs }}>
@@ -145,6 +153,12 @@ export default function AddItemScreen() {
               {shelfLifeFor(selected, storage) === 1 ? "day" : "days"} in{" "}
               {storage === "room_temp" ? "the counter" : storage === "fridge" ? "the fridge" : "the freezer"}
             </Text>
+            {(selected.optimal_temp_min != null || selected.optimal_temp_max != null) && (
+              <Text variant="micro" color="tertiary" style={{ marginTop: spacing.xs }}>
+                Best around {selected.optimal_temp_min ?? "—"}–
+                {selected.optimal_temp_max ?? "—"}°C
+              </Text>
+            )}
           </Card>
 
           <Text
@@ -222,6 +236,33 @@ export default function AddItemScreen() {
             </View>
           </View>
 
+          {selected.storage_tips != null && selected.storage_tips !== "" && (
+            <Card style={{ marginTop: spacing.l }}>
+              <Text variant="micro" color="tertiary">
+                STORAGE TIP
+              </Text>
+              <Text
+                variant="caption"
+                color="secondary"
+                style={{ marginTop: spacing.xs }}
+              >
+                {selected.storage_tips}
+              </Text>
+            </Card>
+          )}
+
+          {(selected.is_ethylene_producer || selected.is_ethylene_sensitive) && (
+            <Text
+              variant="micro"
+              color="tertiary"
+              style={{ marginTop: spacing.m }}
+            >
+              {selected.is_ethylene_producer
+                ? "Produces ethylene — keep away from ethylene-sensitive produce."
+                : "Sensitive to ethylene — store away from producers like apples and bananas."}
+            </Text>
+          )}
+
           {addError != null && (
             <Text variant="caption" color="danger" style={{ marginTop: spacing.m }}>
               {addError}
@@ -235,7 +276,7 @@ export default function AddItemScreen() {
             onPress={save}
             style={{ marginTop: spacing.l }}
           />
-        </View>
+        </ScrollView>
       ) : (
         <View style={styles.searchStep}>
           <View style={{ paddingHorizontal: layout.screenPadding }}>
