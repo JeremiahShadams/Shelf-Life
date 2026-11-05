@@ -203,6 +203,10 @@ export default function FridgeScreen() {
               gap: spacing.m,
             }}
             showsVerticalScrollIndicator={false}
+            refreshing={inventoryQuery.isRefetching}
+            onRefresh={() => {
+              void inventoryQuery.refetch();
+            }}
             renderItem={({ item }) => (
               <InventoryCard
                 name={item.fruit.name}
