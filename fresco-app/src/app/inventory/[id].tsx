@@ -41,7 +41,8 @@ const STORAGE_LABEL: Record<StorageMethod, string> = {
 
 function formatDays(days: number): string {
   if (days <= 0) return "No days left";
-  const rounded = Math.round(days);
+  if (days < 1) return "Less than a day";
+  const rounded = Math.ceil(days);
   return `~${rounded} ${rounded === 1 ? "day" : "days"} left`;
 }
 

@@ -90,6 +90,7 @@ export default function IdeasScreen() {
           <View style={{ gap: spacing.s }}>
             {useFirst.map((item) => {
               const days = daysOf(item);
+              const displayDays = days <= 0 ? 0 : Math.max(1, Math.ceil(days));
               return (
                 <Card
                   key={item.id}
@@ -114,9 +115,7 @@ export default function IdeasScreen() {
                       label={
                         days <= 0
                           ? "Expired"
-                          : days === 1
-                            ? "1 day"
-                            : `${Math.round(days)} days`
+                          : `${displayDays} ${displayDays === 1 ? "day" : "days"}`
                       }
                       daysLeft={days}
                     />
