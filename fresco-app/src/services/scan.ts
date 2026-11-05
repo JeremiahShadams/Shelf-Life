@@ -24,16 +24,8 @@ export type ScanAsset = {
 
 export async function scanImage(asset: ScanAsset): Promise<ScanResult> {
   const token = useAuth.getState().token;
-
-  // Guest mode has no server account — scanning requires the AI model which
-  // is a server-side resource. Fail with 503 so the existing "model not
-  // deployed" UI path catches it and offers the manual add-by-name flow.
-  if (token === "guest_demo_token") {
-    throw new ApiError(
-      503,
-      "Scanning requires the AI model. Add items manually instead.",
-    );
-  }
+  // If guest, don't send the demo token as a bearer auth header
+  const authToken = token === "guest_demo_token" ? null : token;
 
   const formData = new FormData();
 
@@ -45,7 +37,7 @@ export async function scanImage(asset: ScanAsset): Promise<ScanResult> {
     type: asset.mimeType ?? "image/jpeg",
   } as unknown as Blob);
 
-  return api.upload<ScanResult>("/api/scan/", formData);
+  return api.upload<ScanResult>("/api/scan/", formData, authToken);
 }
 
 /** True when the backend has no model deployed (HTTP 503). */

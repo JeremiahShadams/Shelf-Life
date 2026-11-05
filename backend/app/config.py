@@ -99,12 +99,25 @@ class Settings(BaseSettings):
     @property
     def classifier_model_file(self) -> Path:
         """Absolute path to the fruit classifier model file."""
-        return self.resolve_backend_path(self.classifier_model_path)
+        default_path = self.resolve_backend_path(self.classifier_model_path)
+        if default_path.is_file():
+            return default_path
+        # Also check common alternative filename from notebook export
+        alt_path = self.resolve_backend_path("models/fresco_fruit_classifier.keras")
+        if alt_path.is_file():
+            return alt_path
+        return default_path
 
     @property
     def freshness_model_file(self) -> Path:
         """Absolute path to the freshness model file."""
-        return self.resolve_backend_path(self.freshness_model_path)
+        default_path = self.resolve_backend_path(self.freshness_model_path)
+        if default_path.is_file():
+            return default_path
+        alt_path = self.resolve_backend_path("models/fresco_fruit_classifier.keras")
+        if alt_path.is_file():
+            return alt_path
+        return default_path
 
     @property
     def cors_origins(self) -> list[str]:
