@@ -30,7 +30,7 @@ export function InventoryCard({
   style,
 }: InventoryCardProps) {
   const theme = useTheme();
-  const { colors, spacing, radius, borders, elevation } = theme;
+  const { colors, spacing, radius, borders } = theme;
 
   // Determine status color per Uber Base system
   let statusColor = colors.statusSuccess;

@@ -27,7 +27,7 @@ export function AddedSuccessView({
   style,
 }: AddedSuccessViewProps) {
   const theme = useTheme();
-  const { colors, spacing, radius } = theme;
+  const { colors, spacing } = theme;
 
   return (
     <View style={[styles.container, { paddingHorizontal: spacing.l }, style]}>

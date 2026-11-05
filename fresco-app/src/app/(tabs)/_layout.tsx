@@ -46,7 +46,7 @@ function AccountIcon(args: IconProps) {
 
 export default function TabLayout() {
   const theme = useTheme();
-  const { colors, layout } = theme;
+  const { colors } = theme;
 
   return (
     <Tabs
