@@ -17,6 +17,8 @@ export type AddedSuccessViewProps = {
   itemName: string;
   onViewInventory: () => void;
   onScanAnother: () => void;
+  /** Secondary action label — manual add shows "Add another" instead of "Scan another". */
+  secondaryLabel?: string;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -24,6 +26,7 @@ export function AddedSuccessView({
   itemName,
   onViewInventory,
   onScanAnother,
+  secondaryLabel = "Scan another",
   style,
 }: AddedSuccessViewProps) {
   const theme = useTheme();
@@ -82,7 +85,7 @@ export function AddedSuccessView({
           onPress={onViewInventory}
         />
         <Button
-          label="Scan another"
+          label={secondaryLabel}
           variant="secondary"
           block
           onPress={onScanAnother}

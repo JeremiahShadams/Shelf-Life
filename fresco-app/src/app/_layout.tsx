@@ -63,6 +63,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="scan-result" options={{ presentation: "modal" }} />
+          <Stack.Screen name="add-item" options={{ presentation: "modal" }} />
         </Stack>
       )}
     </QueryClientProvider>
