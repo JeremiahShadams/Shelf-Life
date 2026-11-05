@@ -12,15 +12,21 @@ function resolveApiUrl(): string {
   if (envUrl) {
     return envUrl;
   }
-  const hostUri = Constants.expoConfig?.hostUri;
+  const hostUri =
+    Constants.expoConfig?.hostUri ??
+    (Constants as unknown as { manifest?: { debuggerHost?: string } }).manifest?.debuggerHost ??
+    (Constants as unknown as { manifest2?: { extra?: { expoClient?: { hostUri?: string } } } })
+      .manifest2?.extra?.expoClient?.hostUri;
   if (hostUri) {
     const hostIp = hostUri.split(":")[0];
     return `http://${hostIp}:8000`;
   }
-  return "http://localhost:8000";
+  // Fallback to PC's LAN IP so a physical phone connects to the host PC instead of itself (localhost)
+  return "http://192.168.100.6:8000";
 }
 
 const API_URL = resolveApiUrl();
+console.log("[Fresco API] Connecting to:", API_URL);
 
 export class ApiError extends Error {
   /** HTTP status, or 0 for network failures (server unreachable). */
