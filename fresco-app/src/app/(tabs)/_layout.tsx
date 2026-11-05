@@ -78,7 +78,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="fridge"
         options={{
-          title: "Inventory",
+          title: "Fridge",
           tabBarIcon: InventoryIcon,
         }}
       />
@@ -92,7 +92,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Account",
+          title: "Profile",
           tabBarIcon: AccountIcon,
         }}
       />
