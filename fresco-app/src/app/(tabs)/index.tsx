@@ -37,6 +37,7 @@ export default function ScanScreen() {
   const [torch, setTorch] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [modelMissing, setModelMissing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -51,6 +52,7 @@ export default function ScanScreen() {
   async function upload(asset: ScanAsset) {
     setBusy(true);
     setError(null);
+    setModelMissing(false);
     try {
       const result = await scanImage(asset);
       router.push({
@@ -58,13 +60,13 @@ export default function ScanScreen() {
         params: { scan: JSON.stringify(result) },
       });
     } catch (err) {
-      setError(
-        isModelNotDeployed(err)
-          ? "Scanning isn't live yet — the AI model hasn't been deployed on the server."
-          : err instanceof Error
-            ? err.message
-            : "Couldn't scan that photo. Try again.",
-      );
+      if (isModelNotDeployed(err)) {
+        setModelMissing(true);
+      } else {
+        setError(
+          err instanceof Error ? err.message : "Couldn't scan that photo. Try again.",
+        );
+      }
     } finally {
       setBusy(false);
     }
@@ -137,6 +139,32 @@ export default function ScanScreen() {
           />
         </View>
       </SafeAreaView>
+    );
+  }
+
+  // Model not deployed — keep the app useful by pointing at the manual path.
+  if (modelMissing) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background }]}>
+        <ErrorState
+          full
+          title="Scanning isn't live yet"
+          message="The AI model hasn't been deployed on the server. You can still add items by name and track their shelf life."
+          retryLabel="Add item by name"
+          onRetry={() => router.push("/add-item")}
+        />
+        <View style={{ paddingHorizontal: layout.screenPadding, paddingBottom: spacing.l }}>
+          <Button
+            label="Try another photo"
+            variant="ghost"
+            block
+            onPress={() => {
+              setModelMissing(false);
+              void handlePick();
+            }}
+          />
+        </View>
+      </View>
     );
   }
 
