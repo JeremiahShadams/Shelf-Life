@@ -47,6 +47,12 @@ export default function RootLayout() {
     void hydrate();
   }, [hydrate]);
 
+  // A signed-out session must not leave another user's inventory, alerts, or
+  // profile data sitting in the cache for the next login to flash.
+  useEffect(() => {
+    if (status === "anon") queryClient.clear();
+  }, [status, queryClient]);
+
   return (
     <QueryClientProvider client={queryClient}>
       {status === "idle" ? (
