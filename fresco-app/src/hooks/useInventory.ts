@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addToInventory,
   deleteInventoryItem,
+  getInventoryItem,
   listInventory,
   updateInventoryItem,
 } from "../services/inventory";
@@ -24,6 +25,16 @@ export function useInventory() {
     queryKey: [INVENTORY_KEY],
     queryFn: () => listInventory(token as string),
     enabled: token != null,
+  });
+}
+
+export function useInventoryItem(itemId: number | null) {
+  const token = useAuth((s) => (s.status === "authed" ? s.token : null));
+
+  return useQuery({
+    queryKey: [INVENTORY_KEY, itemId],
+    queryFn: () => getInventoryItem(token as string, itemId as number),
+    enabled: token != null && itemId != null,
   });
 }
 

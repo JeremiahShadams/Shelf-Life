@@ -203,6 +203,12 @@ export default function FridgeScreen() {
                 category={item.fruit.subcategory}
                 quantity={item.quantity}
                 daysLeft={daysOf(item)}
+                onPress={() =>
+                  router.push({
+                    pathname: "/inventory/[id]",
+                    params: { id: String(item.id) },
+                  })
+                }
               />
             )}
           />
