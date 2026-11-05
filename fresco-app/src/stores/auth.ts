@@ -5,6 +5,7 @@
  * session instead of flashing a login screen.
  */
 
+import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
 import { ApiError } from "../services/api";
@@ -15,6 +16,61 @@ export type AuthStatus = "idle" | "anon" | "authed";
 
 const TOKEN_KEY = "fresco.auth.token";
 const USER_KEY = "fresco.auth.user";
+
+// Safe cross-platform storage: SecureStore on native (iOS/Android), localStorage on web
+async function storageSet(key: string, value: string): Promise<void> {
+  if (Platform.OS === "web") {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem(key, value);
+      }
+    } catch {
+      // Storage unavailable or blocked
+    }
+    return;
+  }
+  try {
+    await SecureStore.setItemAsync(key, value);
+  } catch {
+    // Fallback if secure store fails
+  }
+}
+
+async function storageGet(key: string): Promise<string | null> {
+  if (Platform.OS === "web") {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        return window.localStorage.getItem(key);
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+  try {
+    return await SecureStore.getItemAsync(key);
+  } catch {
+    return null;
+  }
+}
+
+async function storageDelete(key: string): Promise<void> {
+  if (Platform.OS === "web") {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.removeItem(key);
+      }
+    } catch {
+      // ignore
+    }
+    return;
+  }
+  try {
+    await SecureStore.deleteItemAsync(key);
+  } catch {
+    // ignore
+  }
+}
 
 export type AuthState = {
   status: AuthStatus;
@@ -29,13 +85,13 @@ export type AuthState = {
 };
 
 async function persist(token: string, user: User): Promise<void> {
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
-  await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+  await storageSet(TOKEN_KEY, token);
+  await storageSet(USER_KEY, JSON.stringify(user));
 }
 
 async function clearPersisted(): Promise<void> {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
-  await SecureStore.deleteItemAsync(USER_KEY);
+  await storageDelete(TOKEN_KEY);
+  await storageDelete(USER_KEY);
 }
 
 export const useAuth = create<AuthState>((set) => ({
@@ -46,8 +102,8 @@ export const useAuth = create<AuthState>((set) => ({
   hydrate: async () => {
     let token: string | null = null;
     try {
-      token = await SecureStore.getItemAsync(TOKEN_KEY);
-      const cachedJson = await SecureStore.getItemAsync(USER_KEY);
+      token = await storageGet(TOKEN_KEY);
+      const cachedJson = await storageGet(USER_KEY);
 
       if (!token) {
         set({ status: "anon", token: null, user: null });
@@ -67,7 +123,7 @@ export const useAuth = create<AuthState>((set) => ({
       // at boot instead of failing later on the Fridge screen.
       try {
         const user = await getMe(token);
-        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+        await storageSet(USER_KEY, JSON.stringify(user));
         set({ status: "authed", token, user });
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
