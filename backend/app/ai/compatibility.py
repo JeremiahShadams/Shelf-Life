@@ -193,9 +193,14 @@ def check_compatibility(fruit_names: list[str]) -> dict:
             f"{', '.join(safe_group)} can be stored together."
         )
     elif producer_group:
+        # Use the actual conflicting pairs, not "everything that isn't a
+        # producer": a fruit can be both producer and sensitive (Apple,
+        # Banana), which previously left this sentence with an empty list.
+        producers = sorted({pair["producer"] for pair in incompatible_pairs})
+        sensitives = sorted({pair["sensitive"] for pair in incompatible_pairs})
         recommendation = (
-            f"Ethylene producers ({', '.join(producer_group)}) should be stored "
-            f"away from sensitive fruits ({', '.join(safe_group)})."
+            f"Store ethylene producers ({', '.join(producers)}) away from "
+            f"ethylene-sensitive produce ({', '.join(sensitives)})."
         )
     else:
         recommendation = "These fruits have some interactions — check the warnings above."
