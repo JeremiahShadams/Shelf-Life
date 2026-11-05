@@ -1,9 +1,8 @@
 # Fresco Mobile App
 
-Native iOS + Android client for the Fresco shelf-life API. Built with Expo SDK 57, Expo Router (`src/app`), TypeScript.
+Native iOS + Android client for the Fresco shelf-life API. Built with Expo SDK 58, Expo Router (`src/app`), TypeScript, and TanStack Query.
 
-> Design standard: global tier — calm, precise, restrained. One primary action per screen.
-> Rule — nothing ships that looks generic.
+> Design standard: Uber Base — black and white surfaces, bold tight type, Uber Blue (`#276EF1`) accents. One primary action per screen.
 
 ## Setup
 
@@ -21,14 +20,18 @@ fresco-app/
 │   ├── app/                   # Expo Router (file-based routing)
 │   │   ├── (auth)/            # login.tsx, register.tsx
 │   │   ├── (tabs)/            # index.tsx (Scan), fridge, ideas, profile
-│   │   └── scan-result.tsx
+│   │   ├── add-item.tsx       # manual add: fruit search → storage + quantity
+│   │   ├── inventory/[id].tsx # item detail: storage switch, eaten, remove
+│   │   ├── notifications.tsx  # expiry alerts
+│   │   └── scan-result.tsx    # modal verdict from /api/scan
 │   ├── components/
-│   │   ├── ui/                # Button, Text, Card, Input, Badge, EmptyState, ErrorState, LoadingState
-│   │   ├── scan/              # CameraView, ScanResultCard
-│   │   └── fridge/            # FridgeItemCard, DaysLeftBadge
-│   ├── services/              # api.ts (FastAPI client), auth.ts, notifications.ts
-│   ├── stores/                # Zustand: fridge, session
-│   └── types/
+│   │   ├── ui/                # Button, Text, Card, Input, Badge, FAB, states
+│   │   └── fridge/            # add sheet, success view
+│   ├── hooks/                 # inventory, fruits, notifications, health
+│   ├── services/              # api, auth, inventory, fruits, scan, system
+│   ├── stores/                # Zustand: auth session, fridge UI filter
+│   ├── types/                 # hand-written mirrors of the API schemas
+│   └── utils/                 # UTC-safe date parsing
 ├── theme/                     # LOCKED design system (root-level — imported by src/)
 │   ├── colors.ts
 │   ├── typography.ts
@@ -44,38 +47,44 @@ All tokens live in `theme/`. Excerpts of the rules they encode:
 
 | File | Rule |
 |---|---|
-| `colors.ts` | light + dark palettes. Accent green `#2F9E44` is a **signal** (freshness/success), never decoration. Primary flips near-white in dark mode |
-| `typography.ts` | SF Pro/Inter. Roles only: largeTitle 30, title 21, headline 17, body 16, caption 14, micro 13. No ad-hoc sizes |
-| `spacing.ts` | 8pt system (4/8/16/24/32/40). Screen gutter always 20. Radii: card 16, button 14, input 12. Shadows iOS-only, floating elements only |
+| `colors.ts` | Light + dark palettes. Black/white primary, Uber Blue `#276EF1` accent, status Urgent/Warning/Success. Includes a `shadow` token — never hardcode a hex in a component |
+| `typography.ts` | Roles only: largeTitle 30, headline 24, title 20, cardTitle 17, body 15, caption 14, micro 12, label 10, statusLarge 32. No ad-hoc sizes |
+| `spacing.ts` | 4/8 grid. Screen gutter 20, card/button radius 12, sheet radius 24, controls 56 tall, FAB 56 |
 | `index.ts` | `useTheme()` consumes `useColorScheme()` — dark mode follows the system from day one |
 
 **Days-left color rule** (the only legal semantic color mapping anywhere in the app):
 
-- days > 4 → `textSecondary`
-- days 2–4 → `warning`
-- days 0–1 → `danger`
+- days > 4 → `statusSuccess` (calm)
+- days 2–4 → `statusWarning`
+- days 0–1 → `statusUrgent` / "DAY LEFT"
+- days ≤ 0 → `statusUrgent` / "EXPIRED"
+
+Always render the live `days_left` from the API — never `estimated_days_remaining`, which is only the at-scan snapshot.
 
 **Component rules:**
 
 1. One primary action per screen — exactly one `Button` with `variant="primary"`.
 2. Every screen implements all four states: loading, empty, error, content. No exceptions.
-3. Icons: Lucide/Phosphor style only. No illustrations.
+3. Icons: Ionicons only (bundled with `@expo/vector-icons`). No illustrations.
 4. Bottom nav: strictly 4 items — Scan, Fridge, Ideas, Profile.
-5. Light + Dark are equal first-class citizens; never hardcode a hex inside a component.
+5. Light + dark are equal first-class citizens; never hardcode a hex inside a component.
 
 ## Build order
 
 1. Theme ✅ (`theme/` — locked)
-2. Core `ui/` components (Button, Text, Card, Input, states)
-3. Scan screen (offline layout → loading → error → connect API)
-4. Fridge screen
-5. Ideas screen
-6. Profile + auth
-7. Push notifications
+2. Core `ui/` components ✅ (Button, Text, Card, Input, Badge, FAB, empty/error/loading states)
+3. Auth ✅ (sign in, register, guest mode, boot validation, route guard)
+4. Scan ✅ (camera + library fallback; 503 explains the missing model and links to manual add)
+5. Fridge ✅ (live list, summary counts, filters, pull-to-refresh, item detail, storage switch, eaten/remove)
+6. Manual add ✅ (fruit search, storage, quantity, storage tips)
+7. Ideas ✅ (eat-first list, ethylene compatibility check)
+8. Profile ✅ (alert count, AI scanning status, sign out)
+9. Notifications ✅ (scheduled/delivered expiry alerts)
+10. Push notifications ⏳ (needs a development build and the backend scheduler)
+11. Model deployment ⏳ (`backend/models/fresco_model.keras` from `Freshness44.ipynb`)
 
 ## Backend
 
-The mobile app talks to the existing FastAPI backend (`../backend`)
-(`NEXT_PUBLIC_API_URL` equivalent: set `EXPO_PUBLIC_API_URL`). Backend health
-work (model artifact, truthful days-left, notification scheduler) must land
-before the scan and fridge slices wire up to the API.
+The mobile app talks to the existing FastAPI backend (`../backend`). Point it at a server with `EXPO_PUBLIC_API_URL`; otherwise the app derives the host from Expo's dev-server LAN address and uses port 8000.
+
+Scanning stays unavailable (HTTP 503) until the Keras model is exported, but the rest of the loop — auth, manual add, inventory, alerts, ideas — works without it. In Guest mode the inventory is kept locally, so the demo needs no account or server writes.
