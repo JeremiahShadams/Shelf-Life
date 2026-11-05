@@ -1,7 +1,9 @@
 /**
  * Fresco — Notifications
- * Read-only list of expiry alerts the backend schedules when an item is
- * added. Ordered server-side: unsent first, then by fire time.
+ * Read-only list of expiry reminders recorded when an item is added.
+ * Note: Push notification delivery is not yet implemented — these are
+ * reminder records only. The backend creates a row with notify_at but
+ * no background worker actually sends notifications or flips `sent`.
  */
 
 import { FlatList, Pressable, StyleSheet, View } from "react-native";
@@ -80,7 +82,28 @@ export default function NotificationsScreen() {
           }
         />
       ) : (
-        <FlatList
+        <>
+          {/* Disclaimer — push notifications are not yet wired */}
+          <View
+            style={{
+              marginHorizontal: layout.screenPadding,
+              marginTop: spacing.s,
+              paddingVertical: spacing.xs,
+              paddingHorizontal: spacing.s,
+              backgroundColor: colors.backgroundMuted,
+              borderRadius: 8,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.xs,
+            }}
+          >
+            <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
+            <Text variant="micro" color="secondary" style={{ flex: 1 }}>
+              Reminders are recorded when you add items. Push notification delivery
+              is not yet implemented.
+            </Text>
+          </View>
+          <FlatList
           data={items}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={{
@@ -90,7 +113,8 @@ export default function NotificationsScreen() {
             gap: spacing.s,
           }}
           renderItem={({ item }) => <NotificationRow item={item} />}
-        />
+          />
+        </>
       )}
     </SafeAreaView>
   );
@@ -124,8 +148,8 @@ function NotificationRow({ item }: { item: NotificationItem }) {
       </View>
       <View style={{ marginTop: spacing.s }}>
         <Badge
-          label={item.sent ? "Delivered" : "Scheduled"}
-          status={item.sent ? "success" : "warning"}
+          label={item.sent ? "Sent" : "Pending"}
+          status={item.sent ? "success" : "info"}
           showDot
         />
       </View>

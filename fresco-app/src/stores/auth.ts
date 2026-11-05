@@ -10,6 +10,7 @@ import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
 import { ApiError } from "../services/api";
 import { getMe, login as apiLogin, register as apiRegister } from "../services/auth";
+import { clearGuestInventory } from "../services/inventory";
 import type { User } from "../types/api";
 
 export type AuthStatus = "idle" | "anon" | "authed";
@@ -169,6 +170,7 @@ export const useAuth = create<AuthState>((set) => ({
   },
 
   logout: async () => {
+    clearGuestInventory();
     await clearPersisted();
     set({ status: "anon", token: null, user: null });
   },

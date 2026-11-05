@@ -164,3 +164,9 @@ export function deleteInventoryItem(token: string, itemId: number): Promise<Mess
   }
   return api.delete<MessageResponse>(`/api/inventory/${itemId}`, token);
 }
+
+/** Reset guest inventory — call on logout so ephemeral data doesn't leak. */
+export function clearGuestInventory(): void {
+  guestItems = [];
+  guestNextId = 1;
+}

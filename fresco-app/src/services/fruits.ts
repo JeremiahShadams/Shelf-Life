@@ -3,7 +3,7 @@
  * Wraps /api/fruits (reference database). Public endpoints — no token.
  */
 
-import { api } from "./api";
+import { api, ApiError } from "./api";
 import type { CompatibilityResponse, Fruit, FruitListResponse } from "../types/api";
 
 const FALLBACK_FRUITS: Fruit[] = [
@@ -108,41 +108,44 @@ export async function searchFruits(query: string, page = 1, perPage = 20): Promi
 
   try {
     return await api.get<FruitListResponse>(`/api/fruits/?${params.toString()}`);
-  } catch {
-    // Offline / guest fallback
-    const q = query.toLowerCase().trim();
-    const filtered = q
-      ? FALLBACK_FRUITS.filter((f) => f.name.toLowerCase().includes(q))
-      : FALLBACK_FRUITS;
-    return {
-      items: filtered,
-      total: filtered.length,
-      page: 1,
-      per_page: perPage,
-    };
+  } catch (err) {
+    // Only fall back to the local list on genuine network failures (status 0
+    // = offline/unreachable). Server errors (401, 500, etc.) propagate so the
+    // caller can show a retry state instead of silently swallowing them.
+    if (err instanceof ApiError && err.status === 0) {
+      const q = query.toLowerCase().trim();
+      const filtered = q
+        ? FALLBACK_FRUITS.filter((f) => f.name.toLowerCase().includes(q))
+        : FALLBACK_FRUITS;
+      return {
+        items: filtered,
+        total: filtered.length,
+        page: 1,
+        per_page: perPage,
+      };
+    }
+    throw err;
   }
 }
 
 export async function getFruit(fruitId: number): Promise<Fruit> {
   try {
     return await api.get<Fruit>(`/api/fruits/${fruitId}`);
-  } catch {
-    const found = FALLBACK_FRUITS.find((f) => f.id === fruitId);
-    if (found) return found;
-    return FALLBACK_FRUITS[0];
+  } catch (err) {
+    // On genuine network failure, check local cache. Never substitute a
+    // different fruit — the caller should show a retry state instead.
+    if (err instanceof ApiError && err.status === 0) {
+      const found = FALLBACK_FRUITS.find((f) => f.id === fruitId);
+      if (found) return found;
+    }
+    throw err;
   }
 }
 
 export async function checkCompatibility(names: string[]): Promise<CompatibilityResponse> {
   const params = new URLSearchParams({ fruits: names.join(",") });
-  try {
-    return await api.get<CompatibilityResponse>(`/api/fruits/compatibility?${params.toString()}`);
-  } catch {
-    return {
-      compatible_groups: [names],
-      incompatible_pairs: [],
-      recommendation: "All items can be stored together.",
-      unknown_names: [],
-    };
-  }
+  // TRUST RULE: Never fabricate a "compatible" result. If the backend is
+  // unreachable, let the error propagate so the UI shows an error state
+  // with a retry button instead of making a false safety claim.
+  return api.get<CompatibilityResponse>(`/api/fruits/compatibility?${params.toString()}`);
 }

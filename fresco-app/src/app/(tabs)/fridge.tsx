@@ -33,6 +33,7 @@ import {
 import { useInventory } from "../../hooks/useInventory";
 import { useNotifications } from "../../hooks/useNotifications";
 import { useFridgeStore } from "../../stores/fridgeStore";
+import { useAuth } from "../../stores/auth";
 import type { InventoryItem } from "../../types/api";
 
 function daysOf(item: InventoryItem): number {
@@ -45,6 +46,7 @@ export default function FridgeScreen() {
 
   const filter = useFridgeStore((s) => s.filter);
   const setFilter = useFridgeStore((s) => s.setFilter);
+  const isGuest = useAuth((s) => s.token === "guest_demo_token");
 
   // Live Inventory Hook
   const inventoryQuery = useInventory();
@@ -152,6 +154,28 @@ export default function FridgeScreen() {
             onTabChange={(key) => setFilter(key)}
           />
         </View>
+
+        {/* Guest Mode Banner */}
+        {isGuest && (
+          <View
+            style={{
+              marginHorizontal: layout.screenPadding,
+              marginBottom: spacing.m,
+              paddingVertical: spacing.xs,
+              paddingHorizontal: spacing.s,
+              backgroundColor: colors.backgroundMuted,
+              borderRadius: 8,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.xs,
+            }}
+          >
+            <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
+            <Text variant="micro" color="secondary" style={{ flex: 1 }}>
+              Guest mode — your inventory is temporary and will be cleared when you sign out.
+            </Text>
+          </View>
+        )}
 
         {/* Main Content Area */}
         {inventoryQuery.isLoading && allItems.length === 0 ? (
