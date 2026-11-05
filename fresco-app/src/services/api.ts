@@ -69,9 +69,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       headers,
       body: options.formData ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined),
     });
-  } catch {
-    // fetch only throws on network-level failures (DNS, refused, offline)
-    throw new ApiError(0, "Can't reach the server. Check your connection.");
+  } catch (err) {
+    // fetch throws on network-level failures (DNS, refused, offline, blocked by firewall)
+    const reason = err instanceof Error ? err.message : String(err);
+    throw new ApiError(0, `Can't reach server at ${API_URL}: ${reason}`);
   }
 
   if (!res.ok) {
