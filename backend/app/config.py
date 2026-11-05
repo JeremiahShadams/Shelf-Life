@@ -45,7 +45,11 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./shelf_life_dev.db"
 
     # --- CORS ---
-    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    allowed_origins: str = (
+        "http://localhost:3000,http://127.0.0.1:3000,"
+        "http://localhost:8081,http://127.0.0.1:8081,"
+        "http://localhost:19006,http://127.0.0.1:19006"
+    )
 
     # --- Security ---
     secret_key: str = "dev-secret-key-change-in-production"
