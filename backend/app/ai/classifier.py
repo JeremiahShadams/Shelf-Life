@@ -1,16 +1,16 @@
 """
 Fruit Classifier — Real inference using fresco_model.keras (MobileNetV2).
 
-Trained on 4 fruit types across freshness stages:
-  Apple, Banana, Carrot, Tomato (+ Expired class)
+Trained on 22 fruit types with a binary freshness label:
+  <Fruit>_Fresh / <Fruit>_Rotten  (44 classes total)
 
-Each class name encodes the fruit type and a video-frame range.
-Lower range numbers = earlier frames = fresher fruit.
+The class order below is the alphabetical order Keras flow_from_dataframe
+assigns, which is what the model's output layer was trained against.
+Do NOT reorder CLASS_NAMES without retraining: index i must match output i.
 """
 
 import asyncio
 import os
-import re
 
 import numpy as np
 from PIL import Image
@@ -20,42 +20,65 @@ import keras  # noqa: E402  — backend env var must be set before import
 
 from app.ai.freshness import get_freshness_label
 
-# Class labels in the alphabetical order Keras flow_from_directory assigns them.
-# 14 classes = 3 Apple + 4 Banana + 3 Carrot + 1 Expired + 3 Tomato
+# 44 classes = 22 fruits x {Fresh, Rotten}, in Keras' sorted class order.
 CLASS_NAMES = [
-    "Apple(1-5)",    # 0
-    "Apple(10-14)",  # 1
-    "Apple(5-10)",   # 2
-    "Banana(1-5)",   # 3
-    "Banana(10-15)", # 4
-    "Banana(15-20)", # 5
-    "Banana(5-10)",  # 6
-    "Carrot(1-2)",   # 7
-    "Carrot(3-4)",   # 8
-    "Expired",       # 9
-    "Tomato(1-5)",   # 10
-    "Tomato(10-15)", # 11
-    "Tomato(5-10)",  # 12
-    "carrot(5-6)",   # 13
+    "Apple_Fresh",        # 0
+    "Apple_Rotten",       # 1
+    "Banana_Fresh",       # 2
+    "Banana_Rotten",      # 3
+    "Bellpepper_Fresh",   # 4
+    "Bellpepper_Rotten",  # 5
+    "Carrot_Fresh",       # 6
+    "Carrot_Rotten",      # 7
+    "Cucumber_Fresh",     # 8
+    "Cucumber_Rotten",    # 9
+    "Gourd_Fresh",        # 10
+    "Gourd_Rotten",       # 11
+    "Grape_Fresh",        # 12
+    "Grape_Rotten",       # 13
+    "Grapes_Fresh",       # 14
+    "Grapes_Rotten",      # 15
+    "Guava_Fresh",        # 16
+    "Guava_Rotten",       # 17
+    "Jujube_Fresh",       # 18
+    "Jujube_Rotten",      # 19
+    "Kaki_Fresh",         # 20
+    "Kaki_Rotten",        # 21
+    "Lime_Fresh",         # 22
+    "Lime_Rotten",        # 23
+    "Mango_Fresh",        # 24
+    "Mango_Rotten",       # 25
+    "Orange_Fresh",       # 26
+    "Orange_Rotten",      # 27
+    "Papaya_Fresh",       # 28
+    "Papaya_Rotten",      # 29
+    "Peach_Fresh",        # 30
+    "Peach_Rotten",       # 31
+    "Pear_Fresh",         # 32
+    "Pear_Rotten",        # 33
+    "Pomegranate_Fresh",  # 34
+    "Pomegranate_Rotten", # 35
+    "Potato_Fresh",       # 36
+    "Potato_Rotten",      # 37
+    "Strawberry_Fresh",   # 38
+    "Strawberry_Rotten",  # 39
+    "Tomato_Fresh",       # 40
+    "Tomato_Rotten",      # 41
+    "Watermelon_Fresh",   # 42
+    "Watermelon_Rotten",  # 43
 ]
 
-# Freshness score per class.
-# Lower range-start number = earlier in sequence = fresher fruit.
-_FRESHNESS: dict[str, float] = {
-    "Apple(1-5)":    0.90,
-    "Apple(5-10)":   0.65,
-    "Apple(10-14)":  0.35,
-    "Banana(1-5)":   0.92,
-    "Banana(5-10)":  0.68,
-    "Banana(10-15)": 0.42,
-    "Banana(15-20)": 0.18,
-    "Carrot(1-2)":   0.90,
-    "Carrot(3-4)":   0.60,
-    "carrot(5-6)":   0.30,
-    "Tomato(1-5)":   0.90,
-    "Tomato(5-10)":  0.60,
-    "Tomato(10-15)": 0.30,
-    "Expired":       0.05,
+# The dataset is binary, so these are the only two honest freshness values.
+# Rotten maps low enough to land in the decision engine's SPOILED band.
+_STATE_SCORES: dict[str, float] = {
+    "Fresh": 0.85,
+    "Rotten": 0.10,
+}
+
+# Dataset fruit names that differ from the seed database names.
+_FRUIT_ALIASES: dict[str, str] = {
+    "Grapes": "Grape",
+    "Kaki": "Persimmon",
 }
 
 _model = None
@@ -77,22 +100,10 @@ def _preprocess(image_path: str) -> np.ndarray:
     return np.expand_dims(arr, axis=0)  # (1, 224, 224, 3)
 
 
-def _parse_fruit_name(class_name: str) -> str:
-    """Strip the '(X-Y)' suffix and title-case the result."""
-    return re.sub(r"\(\d+-\d+\)", "", class_name).strip().title()
-
-
 def _run_inference(model, arr: np.ndarray) -> np.ndarray:
     # Called in a thread pool — keeps the ASGI event loop unblocked during
     # the CPU-bound model.predict() call (~0.5s on numpy backend).
     return model.predict(arr, verbose=0)
-
-
-_EXPIRED_IDX = CLASS_NAMES.index("Expired")
-
-# Demo freshness used until the freshness model is trained.
-_DEMO_FRESHNESS_SCORE = 0.80
-_DEMO_FRESHNESS_LABEL = "Fresh"
 
 
 async def classify_fruit(image_path: str) -> dict:
@@ -100,36 +111,33 @@ async def classify_fruit(image_path: str) -> dict:
     Classify a fruit image using the trained fresco_model.keras.
 
     Returns:
-        name            - Fruit name (title-cased, e.g. "Carrot")
-        confidence      - Model confidence for the top fruit class (0-1)
-        freshness_score - Demo value (0.80) until freshness model is trained
-        freshness_label - Demo label ("Fresh") until freshness model is trained
-        expired         - Always False in demo mode
+        name            - Fruit name matching the seed database where possible
+        confidence      - Model confidence for the top class (0-1)
+        freshness_score - 0.85 for Fresh, 0.10 for Rotten
+        freshness_label - Human-readable label derived from the score
+        expired         - True when the top class is a Rotten class
     """
     model = _get_model()
     arr = _preprocess(image_path)
     preds = await asyncio.to_thread(_run_inference, model, arr)
     del arr
 
-    # Mask out the Expired class so the model picks the best fruit type.
-    # The Expired class dominates due to a training imbalance; fruit-type
-    # recognition is still useful via the remaining 13 classes.
-    scores = preds[0].copy()
-    scores[_EXPIRED_IDX] = 0.0
-
-    idx = int(np.argmax(scores))
+    idx = int(np.argmax(preds[0]))
     confidence = float(preds[0][idx])
     class_name = CLASS_NAMES[idx]
+    fruit_name, state = class_name.rsplit("_", 1)
+    fruit_name = _FRUIT_ALIASES.get(fruit_name, fruit_name)
 
-    # Freshness is derived from the predicted class's stage (e.g. Tomato(1-5)
-    # vs Tomato(10-15)), so different ripeness stages yield different results.
-    freshness_score = _FRESHNESS[class_name]
+    # TRUST RULE: never suppress the Rotten class. Masking it (as the old
+    # 14-class code did) turns a spoiled prediction into a false "fresh"
+    # verdict, which is the most dangerous error this app can make.
+    freshness_score = _STATE_SCORES[state]
     freshness_label = get_freshness_label(freshness_score)
 
     return {
-        "name": _parse_fruit_name(class_name),
+        "name": fruit_name,
         "confidence": round(confidence, 4),
         "freshness_score": freshness_score,
         "freshness_label": freshness_label,
-        "expired": False,
+        "expired": state == "Rotten",
     }
