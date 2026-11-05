@@ -15,7 +15,7 @@ export function useFruitSearch(query: string) {
 
   return useQuery({
     queryKey: [FRUITS_KEY, trimmed],
-    queryFn: () => searchFruits(trimmed, 1, 30),
+    queryFn: () => searchFruits(trimmed, 1, 50),
     // The reference table changes rarely; keep results warm between screens.
     staleTime: 5 * 60 * 1000,
   });
