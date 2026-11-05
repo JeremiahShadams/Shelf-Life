@@ -174,6 +174,7 @@ export default function ScanScreen() {
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
         <ErrorState
           full
+          title="Scan failed"
           message={error}
           onRetry={() => setError(null)}
         />
