@@ -108,3 +108,18 @@ async def mark_all_notifications_read(
     await db.commit()
     return {"message": "All notifications marked as read", "count": len(notifications)}
 
+
+@router.post(
+    "/process-pending",
+    summary="Process and dispatch pending notifications",
+    description="Trigger due notifications check and push alert dispatch.",
+)
+async def trigger_process_due_notifications():
+    """
+    Called by background task or cloud scheduler to dispatch pending push alerts.
+    """
+    from app.services.reminder_worker import process_due_notifications
+    count = await process_due_notifications()
+    return {"message": "Processed due notifications", "count": count}
+
+

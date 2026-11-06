@@ -8,6 +8,7 @@ Run with:
 """
 
 from contextlib import asynccontextmanager
+import asyncio
 import sys
 
 from fastapi import FastAPI
@@ -96,10 +97,22 @@ async def lifespan(app: FastAPI):
     print("[>] API Docs: http://localhost:8000/docs")
     print("[>] ReDoc: http://localhost:8000/redoc")
 
-    yield  # App is running
+    # Start background expiry reminder worker
+    from app.services.reminder_worker import reminder_worker_loop
+    worker_task = asyncio.create_task(reminder_worker_loop(interval_seconds=900))
 
-    # --- Shutdown ---
-    print("[*] Shutting down Fruit Shelf Life Estimator API...")
+    try:
+        yield  # App is running
+    finally:
+        # --- Shutdown ---
+        print("[*] Shutting down Fruit Shelf Life Estimator API...")
+        worker_task.cancel()
+        try:
+            await worker_task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            pass
 
 
 # ============================================
