@@ -1,0 +1,158 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>FRESCO - Scan</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'sans-serif'] },
+      colors: {
+        uber: {
+          black: '#000000',
+          white: '#FFFFFF',
+          gray: '#F6F6F6',
+          grayDark: '#EEEEEE',
+          text: '#000000',
+          textMuted: '#545454',
+          blue: '#276EF1',
+          red: '#E11900',
+          redLight: '#FCE8E6',
+          amber: '#E69500',
+          amberLight: '#FFF8E1',
+          green: '#05A357',
+          greenLight: '#E6F6EC'
+        }
+      },
+      boxShadow: {
+        'uber': '0 2px 12px rgba(0,0,0,0.08)',
+        'uber-sheet': '0 -4px 24px rgba(0,0,0,0.12)'
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { -webkit-tap-highlight-color: transparent; }
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
+</head>
+<body>
+
+<div class="w-full h-screen flex flex-col bg-uber-white text-uber-text font-sans overflow-hidden relative" data-sd-id="1">
+
+  <!-- Header -->
+  <header class="shrink-0 pt-14 px-5 pb-4 flex justify-between items-center" data-sd-id="2">
+    <div class="text-xl font-bold tracking-tight lowercase" data-sd-id="3">fresco</div>
+    <div class="flex bg-uber-gray p-1 rounded-xl" data-sd-id="4">
+      <button class="px-4 py-1.5 text-sm font-bold bg-uber-black text-uber-white shadow-sm rounded-lg transition-colors" data-sd-id="5">
+        Camera
+      </button>
+      <button class="px-4 py-1.5 text-sm font-bold text-uber-textMuted rounded-lg transition-colors" data-sd-id="6">
+        Upload
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 flex flex-col px-5 overflow-y-auto hide-scrollbar" data-sd-id="7">
+
+    <!-- Viewfinder Area -->
+    <div class="relative w-full aspect-[4/3] bg-uber-black rounded-2xl overflow-hidden shadow-uber mb-6" data-sd-id="8">
+      
+      <!-- Corner Brackets -->
+      <div class="absolute inset-4 pointer-events-none z-10" data-sd-id="9">
+        <div class="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-uber-white/40 rounded-tl-lg" data-sd-id="10"></div>
+        <div class="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-uber-white/40 rounded-tr-lg" data-sd-id="11"></div>
+        <div class="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-uber-white/40 rounded-bl-lg" data-sd-id="12"></div>
+        <div class="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-uber-white/40 rounded-br-lg" data-sd-id="13"></div>
+      </div>
+
+      <!-- State: Camera Starting -->
+      <div class="absolute inset-0 flex flex-col items-center justify-center text-uber-white z-0" data-sd-id="14">
+        <iconify-icon icon="lucide:loader-2" class="text-4xl animate-spin mb-3 text-uber-white/80"></iconify-icon>
+        <span class="text-sm font-medium text-uber-white/80" data-sd-id="15">Starting camera...</span>
+      </div>
+      
+      <!-- State: Live Feed (Simulated Image) -->
+      <img src="https://pquxfbbxflqvtidtlrhl.supabase.co/storage/v1/object/public/hmac-uploads/brand/aa611a48-0f31-4fc3-91b8-a97e15fbee97/assets/ff3ed0f3-ff67-4e24-9152-b1f9c0bb7372.webp" class="absolute inset-0 w-full h-full object-cover z-0 opacity-0" data-sd-id="16">
+
+      <!-- Shutter Button (Overlay) -->
+      <div class="absolute bottom-5 left-1/2 -translate-x-1/2 z-20" data-sd-id="17">
+        <button class="w-16 h-16 rounded-full border-[3px] border-uber-white flex items-center justify-center bg-transparent active:scale-95 transition-transform" data-sd-id="18">
+          <div class="w-12 h-12 bg-uber-white rounded-full" data-sd-id="19"></div>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Error State (Hidden by default) -->
+    <div class="hidden bg-uber-redLight border border-uber-red/20 rounded-xl p-3 mb-6 flex items-start gap-3" data-sd-id="20">
+      <iconify-icon icon="lucide:alert-circle" class="text-uber-red text-lg shrink-0 mt-0.5"></iconify-icon>
+      <div class="flex-1" data-sd-id="21">
+        <p class="text-sm font-bold text-uber-red mb-0.5" data-sd-id="22">Camera permission denied</p>
+        <p class="text-xs text-uber-red/80" data-sd-id="23">Please enable camera access in settings or upload a photo instead.</p>
+      </div>
+    </div>
+
+    <!-- Storage Selector -->
+    <div class="mt-2" data-sd-id="24">
+      <label class="block text-xs font-bold text-uber-textMuted uppercase tracking-wider mb-2" data-sd-id="25">Where will you store it?</label>
+      <div class="flex p-1 bg-uber-gray rounded-xl" data-sd-id="26">
+        <button class="flex-1 py-3 text-sm font-bold text-uber-textMuted rounded-lg transition-colors" data-sd-id="27">
+          Counter
+        </button>
+        <button class="flex-1 py-3 text-sm font-bold bg-uber-white shadow-sm rounded-lg transition-colors" data-sd-id="28">
+          Fridge
+        </button>
+        <button class="flex-1 py-3 text-sm font-bold text-uber-textMuted rounded-lg transition-colors" data-sd-id="29">
+          Freezer
+        </button>
+      </div>
+      <p class="text-xs text-uber-textMuted mt-3 font-medium text-center" data-sd-id="30">
+        This helps us estimate shelf life more accurately.
+      </p>
+    </div>
+
+    <!-- Upload State Example (Hidden) -->
+    <div class="hidden mt-6" data-sd-id="31">
+       <div class="flex gap-3" data-sd-id="32">
+        <button class="flex-1 bg-uber-gray text-uber-black h-14 rounded-xl font-bold text-[15px] active:bg-uber-grayDark transition-colors" data-sd-id="33">
+          Retake
+        </button>
+        <button class="flex-[2] bg-uber-black text-uber-white h-14 rounded-xl font-bold text-[15px] active:scale-[0.98] transition-transform" data-sd-id="34">
+          Scan This Fruit
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Bottom Nav -->
+  <nav class="shrink-0 pb-[34px] pt-2 border-t border-uber-grayDark flex justify-around items-center px-2 bg-uber-white" data-sd-id="35">
+    <button class="flex flex-col items-center gap-1 p-2 text-uber-black" data-sd-id="36">
+      <iconify-icon icon="lucide:scan-line" class="text-2xl"></iconify-icon>
+      <span class="text-[10px] font-semibold uppercase tracking-wider" data-sd-id="37">Scan</span>
+    </button>
+    <button class="flex flex-col items-center gap-1 p-2 text-uber-textMuted" data-sd-id="38">
+      <iconify-icon icon="lucide:list" class="text-2xl"></iconify-icon>
+      <span class="text-[10px] font-semibold uppercase tracking-wider" data-sd-id="39">Inventory</span>
+    </button>
+    <button class="flex flex-col items-center gap-1 p-2 text-uber-textMuted" data-sd-id="40">
+      <iconify-icon icon="lucide:arrow-left-right" class="text-2xl"></iconify-icon>
+      <span class="text-[10px] font-semibold uppercase tracking-wider" data-sd-id="41">Storage</span>
+    </button>
+    <button class="flex flex-col items-center gap-1 p-2 text-uber-textMuted" data-sd-id="42">
+      <iconify-icon icon="lucide:user" class="text-2xl"></iconify-icon>
+      <span class="text-[10px] font-semibold uppercase tracking-wider" data-sd-id="43">Account</span>
+    </button>
+  </nav>
+
+</div>
+
+
+</body></html>

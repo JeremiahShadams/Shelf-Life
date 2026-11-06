@@ -1,0 +1,118 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FRESCO - Processing</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'sans-serif'] },
+      colors: {
+        uber: {
+          black: '#000000',
+          white: '#FFFFFF',
+          gray: '#F6F6F6',
+          grayDark: '#EEEEEE',
+          text: '#000000',
+          textMuted: '#545454',
+          blue: '#276EF1',
+          amber: '#E69500'
+        }
+      }
+    }
+  }
+}
+</script>
+<style>
+  @keyframes pulse-ring {
+    0% { transform: scale(0.8); opacity: 0.5; }
+    50% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(0.8); opacity: 0.5; }
+  }
+  .animate-pulse-ring {
+    animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+  }
+  
+  /* State transitions simulator */
+  .state-layer { opacity: 0; transition: opacity 0.5s ease; }
+  .state-layer.active { opacity: 1; }
+</style>
+</head>
+<body class="bg-uber-white">
+
+<!-- Simulated Background App State -->
+<div class="w-full h-screen flex flex-col bg-uber-white text-uber-text font-sans opacity-30 pointer-events-none filter blur-sm" data-sd-id="1">
+  <header class="shrink-0 pt-14 px-5 pb-4 flex justify-between items-center" data-sd-id="2">
+    <div class="text-xl font-bold tracking-tight lowercase" data-sd-id="3">fresco</div>
+  </header>
+  <main class="flex-1 px-5" data-sd-id="4">
+    <div class="w-full aspect-[4/3] bg-uber-black rounded-2xl" data-sd-id="5"></div>
+  </main>
+</div>
+
+<!-- PROCESSING OVERLAY (Actual Component) -->
+<div class="fixed inset-0 z-50 bg-uber-black/80 backdrop-blur-md flex flex-col items-center justify-center animate-fade-in" role="status" aria-live="polite" data-sd-id="6">
+  
+  <div class="relative flex flex-col items-center" data-sd-id="7">
+    <!-- Spinner Container -->
+    <div class="relative w-16 h-16 flex items-center justify-center mb-6" data-sd-id="8">
+      <!-- Ambient glow ring -->
+      <div class="absolute inset-0 rounded-full border-2 border-uber-white/20 animate-pulse-ring" data-sd-id="9"></div>
+      
+      <!-- Main Spinner -->
+      <svg class="w-12 h-12 animate-spin text-uber-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" data-sd-id="10">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+    </div>
+
+    <!-- Text Container (Relative for absolute positioning of state texts) -->
+    <div class="relative w-full text-center h-16" data-sd-id="11">
+      
+      <!-- State 1: Initial (0-10s) -->
+      <div class="absolute inset-0 state-layer active" id="state-1" data-sd-id="12">
+        <h2 class="text-base font-bold text-uber-white mb-1 tracking-tight" data-sd-id="13">Analyzing your fruit...</h2>
+        <p class="text-xs text-uber-white/60 font-medium" data-sd-id="14">This takes a few seconds</p>
+      </div>
+
+      <!-- State 2: Long Wait (10-25s) -->
+      <div class="absolute inset-0 state-layer" id="state-2" data-sd-id="15">
+        <h2 class="text-base font-bold text-uber-white mb-1 tracking-tight" data-sd-id="16">Almost done...</h2>
+        <p class="text-xs text-uber-white/60 font-medium" data-sd-id="17">Comparing with our database</p>
+      </div>
+
+      <!-- State 3: Timeout Imminent (25-30s) -->
+      <div class="absolute inset-0 state-layer" id="state-3" data-sd-id="18">
+        <h2 class="text-base font-bold text-uber-amber mb-1 tracking-tight" data-sd-id="19">Taking longer than expected...</h2>
+        <p class="text-xs text-uber-amber/80 font-medium" data-sd-id="20">Still trying to connect</p>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Simulator logic for demo purposes
+  setTimeout(() => {
+    document.getElementById('state-1').classList.remove('active');
+    document.getElementById('state-2').classList.add('active');
+  }, 4000);
+
+  setTimeout(() => {
+    document.getElementById('state-2').classList.remove('active');
+    document.getElementById('state-3').classList.add('active');
+  }, 8000);
+</script>
+
+
+</body></html>

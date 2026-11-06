@@ -1,0 +1,250 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>FRESCO - Storage Check</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'sans-serif'] },
+      colors: {
+        uber: {
+          black: '#000000',
+          white: '#FFFFFF',
+          gray: '#F6F6F6',
+          grayDark: '#EEEEEE',
+          text: '#000000',
+          textMuted: '#545454',
+          blue: '#276EF1',
+          green: '#05A357',
+          greenLight: '#E6F6EC',
+          amber: '#E69500',
+          amberLight: '#FFF8E1',
+          red: '#E11900',
+          redLight: '#FCE8E6'
+        }
+      },
+      boxShadow: {
+        'uber': '0 2px 12px rgba(0,0,0,0.08)',
+        'uber-sheet': '0 -4px 24px rgba(0,0,0,0.12)'
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { -webkit-tap-highlight-color: transparent; }
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  
+  /* State transitions */
+  .state-panel { display: none; }
+  .state-panel.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="w-full h-screen flex flex-col bg-uber-white text-uber-text font-sans overflow-hidden relative" data-sd-id="1">
+
+  <!-- Header -->
+  <header class="shrink-0 pt-14 px-5 pb-4 bg-uber-white z-20" data-sd-id="2">
+    <h1 class="text-2xl font-bold tracking-tight mb-1" data-sd-id="3">Storage Check</h1>
+    <p class="text-sm text-uber-textMuted font-medium" data-sd-id="4">Find out which fruits go well together</p>
+  </header>
+
+  <main class="flex-1 overflow-y-auto hide-scrollbar px-5 pb-[100px]" data-sd-id="5">
+
+    <!-- Search Inputs -->
+    <div class="flex gap-3 mb-6 relative z-30" data-sd-id="6">
+      
+      <!-- Fruit A Selector -->
+      <div class="flex-1 relative" data-sd-id="7">
+        <div class="relative" data-sd-id="8">
+          <iconify-icon icon="lucide:search" class="absolute left-3 top-1/2 -translate-y-1/2 text-uber-textMuted text-lg"></iconify-icon>
+          <input type="text" placeholder="Search..." value="Tomato" class="w-full h-12 pl-9 pr-8 bg-uber-gray border-2 border-uber-black rounded-xl text-[15px] font-bold outline-none" data-sd-id="9">
+          <button class="absolute right-3 top-1/2 -translate-y-1/2 text-uber-textMuted" data-sd-id="10">
+            <iconify-icon icon="lucide:x-circle" class="text-lg"></iconify-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- Fruit B Selector -->
+      <div class="flex-1 relative" data-sd-id="11">
+        <div class="relative" data-sd-id="12">
+          <iconify-icon icon="lucide:search" class="absolute left-3 top-1/2 -translate-y-1/2 text-uber-textMuted text-lg"></iconify-icon>
+          <input type="text" placeholder="Search..." value="Banana" class="w-full h-12 pl-9 pr-3 bg-uber-gray border border-transparent rounded-xl text-[15px] font-bold outline-none focus:border-uber-black focus:bg-uber-white" data-sd-id="13">
+        </div>
+        <!-- Dropdown Example (Hidden by default, shown for context) -->
+        <div class="hidden absolute top-[52px] left-0 right-0 bg-uber-white border border-uber-grayDark rounded-xl shadow-uber z-40 overflow-hidden" data-sd-id="14">
+          <div class="p-3 border-b border-uber-grayDark flex items-center gap-3 active:bg-uber-gray" data-sd-id="15">
+            <div class="w-8 h-8 rounded bg-uber-gray flex items-center justify-center text-lg" data-sd-id="16">🍎</div>
+            <span class="font-semibold text-sm flex-1" data-sd-id="17">Apple</span>
+          </div>
+          <div class="p-3 border-b border-uber-grayDark flex items-center gap-3 bg-uber-gray/50 active:bg-uber-gray" data-sd-id="18">
+            <div class="w-8 h-8 rounded bg-uber-gray flex items-center justify-center text-lg" data-sd-id="19">🍌</div>
+            <span class="font-semibold text-sm flex-1" data-sd-id="20">Banana</span>
+            <iconify-icon icon="lucide:check" class="text-uber-green"></iconify-icon>
+          </div>
+          <div class="p-3 flex items-center justify-center text-uber-textMuted text-sm font-medium py-4" data-sd-id="21">
+            <iconify-icon icon="lucide:loader-2" class="animate-spin mr-2"></iconify-icon> Searching...
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RESULTS STATE (Active) -->
+    <div class="state-panel active" id="state-results" data-sd-id="22">
+      
+      <!-- Compatibility Result Card -->
+      <div class="bg-uber-redLight border-2 border-uber-red rounded-2xl p-6 mb-6 flex flex-col items-center text-center shadow-sm relative overflow-hidden" data-sd-id="23">
+        <div class="absolute -top-10 -left-10 w-32 h-32 bg-uber-red/10 rounded-full blur-2xl pointer-events-none" data-sd-id="24"></div>
+        <div class="absolute -bottom-10 -right-10 w-32 h-32 bg-uber-red/10 rounded-full blur-2xl pointer-events-none" data-sd-id="25"></div>
+        
+        <div class="w-16 h-16 rounded-full bg-uber-red flex items-center justify-center mb-3 text-uber-white shadow-lg" data-sd-id="26">
+          <iconify-icon icon="lucide:x" class="text-3xl"></iconify-icon>
+        </div>
+        <h2 class="text-3xl font-black text-uber-red tracking-tight mb-2" data-sd-id="27">INCOMPATIBLE</h2>
+        <p class="text-[15px] font-medium leading-relaxed max-w-[260px]" data-sd-id="28">
+          Do not store Tomatoes and Bananas together.
+        </p>
+        <p class="text-sm text-uber-red/80 font-bold mt-3 bg-uber-white/60 px-3 py-1.5 rounded-lg" data-sd-id="29">
+          Bananas produce high ethylene, which will cause Tomatoes to spoil rapidly.
+        </p>
+      </div>
+
+      <!-- Profiles Grid -->
+      <div class="flex gap-3 mb-6" data-sd-id="30">
+        <!-- Fruit A Profile -->
+        <div class="flex-1 bg-uber-white border border-uber-grayDark rounded-xl p-4" data-sd-id="31">
+          <div class="w-12 h-12 bg-uber-gray rounded-lg flex items-center justify-center text-2xl mb-3" data-sd-id="32">
+            🍅
+          </div>
+          <h3 class="font-bold text-base mb-3" data-sd-id="33">Tomato</h3>
+          
+          <div class="flex flex-col gap-2" data-sd-id="34">
+            <div class="flex items-start gap-2" data-sd-id="35">
+              <iconify-icon icon="lucide:alert-triangle" class="text-uber-amber text-sm shrink-0 mt-0.5"></iconify-icon>
+              <span class="text-[11px] font-bold uppercase tracking-wide text-uber-amber" data-sd-id="36">Sensitive</span>
+            </div>
+            <div class="flex items-start gap-2" data-sd-id="37">
+              <iconify-icon icon="lucide:wind" class="text-uber-textMuted text-sm shrink-0 mt-0.5"></iconify-icon>
+              <span class="text-[11px] font-bold uppercase tracking-wide text-uber-textMuted" data-sd-id="38">Low Producer</span>
+            </div>
+            <div class="flex items-start gap-2 mt-2 pt-2 border-t border-uber-grayDark" data-sd-id="39">
+              <iconify-icon icon="lucide:refrigerator" class="text-uber-textMuted text-sm shrink-0 mt-0.5"></iconify-icon>
+              <span class="text-[11px] font-semibold text-uber-textMuted" data-sd-id="40">Store: Fridge</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fruit B Profile -->
+        <div class="flex-1 bg-uber-white border border-uber-grayDark rounded-xl p-4" data-sd-id="41">
+          <div class="w-12 h-12 bg-uber-gray rounded-lg flex items-center justify-center text-2xl mb-3" data-sd-id="42">
+            🍌
+          </div>
+          <h3 class="font-bold text-base mb-3" data-sd-id="43">Banana</h3>
+          
+          <div class="flex flex-col gap-2" data-sd-id="44">
+            <div class="flex items-start gap-2" data-sd-id="45">
+              <iconify-icon icon="lucide:zap" class="text-uber-red text-sm shrink-0 mt-0.5"></iconify-icon>
+              <span class="text-[11px] font-bold uppercase tracking-wide text-uber-red" data-sd-id="46">High Producer</span>
+            </div>
+            <div class="flex items-start gap-2" data-sd-id="47">
+              <iconify-icon icon="lucide:shield-alert" class="text-uber-amber text-sm shrink-0 mt-0.5"></iconify-icon>
+              <span class="text-[11px] font-bold uppercase tracking-wide text-uber-amber" data-sd-id="48">Sensitive</span>
+            </div>
+            <div class="flex items-start gap-2 mt-2 pt-2 border-t border-uber-grayDark" data-sd-id="49">
+              <iconify-icon icon="lucide:sun" class="text-uber-textMuted text-sm shrink-0 mt-0.5"></iconify-icon>
+              <span class="text-[11px] font-semibold text-uber-textMuted" data-sd-id="50">Store: Counter</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Shared Storage Tips -->
+      <div class="bg-uber-gray rounded-xl p-4 mb-6" data-sd-id="51">
+        <div class="flex items-center gap-2 mb-2" data-sd-id="52">
+          <iconify-icon icon="lucide:info" class="text-uber-black text-lg"></iconify-icon>
+          <h3 class="font-bold text-sm" data-sd-id="53">How to store these</h3>
+        </div>
+        <p class="text-sm text-uber-textMuted leading-relaxed" data-sd-id="54">
+          Keep bananas on the counter away from other produce. Store ripe tomatoes in the fridge to maximize shelf life, or separate them completely if keeping both on the counter.
+        </p>
+      </div>
+
+    </div>
+
+    <!-- EMPTY STATE (Hidden) -->
+    <div class="state-panel hidden" id="state-empty" data-sd-id="55">
+      <div class="flex flex-col items-center justify-center text-center py-12 px-6" data-sd-id="56">
+        <div class="w-20 h-20 bg-uber-gray rounded-full flex items-center justify-center mb-6" data-sd-id="57">
+          <iconify-icon icon="lucide:arrow-left-right" class="text-3xl text-uber-textMuted"></iconify-icon>
+        </div>
+        <h2 class="text-lg font-bold mb-2" data-sd-id="58">Check Compatibility</h2>
+        <p class="text-sm text-uber-textMuted leading-relaxed mb-8" data-sd-id="59">
+          Select two fruits above to see if they can be stored together safely.
+        </p>
+
+        <!-- Common Pairings -->
+        <div class="w-full text-left" data-sd-id="60">
+          <h3 class="text-xs font-bold text-uber-textMuted uppercase tracking-wider mb-4" data-sd-id="61">Common Pairings</h3>
+          
+          <div class="flex flex-col gap-3" data-sd-id="62">
+            <div class="bg-uber-white border border-uber-grayDark rounded-xl p-3 flex justify-between items-center active:bg-uber-gray" data-sd-id="63">
+              <div class="flex items-center gap-2" data-sd-id="64">
+                <span class="text-xl" data-sd-id="65">🍅 + 🌿</span>
+                <span class="text-sm font-semibold" data-sd-id="66">Tomato &amp; Basil</span>
+              </div>
+              <iconify-icon icon="lucide:x-circle" class="text-uber-red text-xl"></iconify-icon>
+            </div>
+            
+            <div class="bg-uber-white border border-uber-grayDark rounded-xl p-3 flex justify-between items-center active:bg-uber-gray" data-sd-id="67">
+              <div class="flex items-center gap-2" data-sd-id="68">
+                <span class="text-xl" data-sd-id="69">🥑 + 🍌</span>
+                <span class="text-sm font-semibold" data-sd-id="70">Avocado &amp; Banana</span>
+              </div>
+              <iconify-icon icon="lucide:check-circle-2" class="text-uber-green text-xl"></iconify-icon>
+            </div>
+
+            <div class="bg-uber-white border border-uber-grayDark rounded-xl p-3 flex justify-between items-center active:bg-uber-gray" data-sd-id="71">
+              <div class="flex items-center gap-2" data-sd-id="72">
+                <span class="text-xl" data-sd-id="73">🍎 + 🍊</span>
+                <span class="text-sm font-semibold" data-sd-id="74">Apple &amp; Orange</span>
+              </div>
+              <iconify-icon icon="lucide:x-circle" class="text-uber-red text-xl"></iconify-icon>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="absolute bottom-0 left-0 right-0 h-[80px] pb-[24px] bg-uber-white/90 backdrop-blur-md border-t border-uber-grayDark flex justify-around items-center z-40 px-2" data-sd-id="75">
+    <button class="flex flex-col items-center gap-1 p-2 text-uber-textMuted" data-sd-id="76">
+      <iconify-icon icon="lucide:scan-line" class="text-2xl"></iconify-icon>
+      <span class="text-[10px] font-semibold uppercase tracking-wider" data-sd-id="77">Scan</span>
+    </button>
+    <button class="flex flex-col items-center gap-1 p-2 text-uber-textMuted" data-sd-id="78">
+      <iconify-icon icon="lucide:list" class="text-2xl"></iconify-icon>
+      <span class="text-[10px] font-semibold uppercase tracking-wider" data-sd-id="79">Inventory</span>
+    </button>
+    <button class="flex flex-col items-center gap-1 p-2 text-uber-black" data-sd-id="80">
+      <iconify-icon icon="lucide:arrow-left-right" class="text-2xl"></iconify-icon>
+      <span class="text-[10px] font-semibold uppercase tracking-wider" data-sd-id="81">Storage</span>
+    </button>
+    <button class="flex flex-col items-center gap-1 p-2 text-uber-textMuted" data-sd-id="82">
+      <iconify-icon icon="lucide:user" class="text-2xl"></iconify-icon>
+      <span class="text-[10px] font-semibold uppercase tracking-wider" data-sd-id="83">Account</span>
+    </button>
+  </nav>
+
+</div>
+
+
+</body></html>

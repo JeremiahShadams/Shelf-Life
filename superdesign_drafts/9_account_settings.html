@@ -1,0 +1,307 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>FRESCO - Account &amp; Settings</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'sans-serif'] },
+      colors: {
+        uber: {
+          black: '#000000',
+          white: '#FFFFFF',
+          gray: '#F6F6F6',
+          grayDark: '#EEEEEE',
+          text: '#000000',
+          textMuted: '#545454',
+          blue: '#276EF1',
+          red: '#E11900',
+          redLight: '#FCE8E6',
+          green: '#05A357'
+        }
+      },
+      boxShadow: {
+        'uber': '0 2px 12px rgba(0,0,0,0.08)',
+        'uber-sheet': '0 -4px 24px rgba(0,0,0,0.12)'
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { -webkit-tap-highlight-color: transparent; }
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  
+  /* Toggle Switch Styles */
+  .toggle-checkbox:checked { right: 0; border-color: #000000; }
+  .toggle-checkbox:checked + .toggle-label { background-color: #000000; }
+  .toggle-checkbox:checked + .toggle-label::after { transform: translateX(100%); }
+</style>
+</head>
+<body>
+
+<div class="w-full h-screen flex flex-col bg-uber-white text-uber-text font-sans overflow-hidden relative" data-sd-id="1">
+
+  <!-- Header -->
+  <header class="shrink-0 pt-14 px-5 pb-4 flex justify-between items-center z-20 bg-uber-white" data-sd-id="2">
+    <button class="p-2 -ml-2 rounded-full active:bg-uber-gray" data-sd-id="3">
+      <iconify-icon icon="lucide:arrow-left" class="text-2xl"></iconify-icon>
+    </button>
+    <h1 class="text-xl font-bold tracking-tight" data-sd-id="4">Account</h1>
+    <button class="p-2 -mr-2 rounded-full active:bg-uber-gray" data-sd-id="5">
+      <iconify-icon icon="lucide:more-vertical" class="text-xl"></iconify-icon>
+    </button>
+  </header>
+
+  <main class="flex-1 overflow-y-auto hide-scrollbar px-5 pb-[120px]" data-sd-id="6">
+
+    <!-- Profile Section -->
+    <section class="mb-8 mt-2" data-sd-id="7">
+      <div class="flex items-center gap-4 bg-uber-white border border-uber-grayDark rounded-xl p-5 shadow-sm active:bg-uber-gray transition-colors cursor-pointer" data-sd-id="8">
+        <div class="w-16 h-16 rounded-full bg-uber-black text-uber-white flex items-center justify-center text-2xl font-bold shrink-0" data-sd-id="9">
+          JD
+        </div>
+        <div class="flex-1" data-sd-id="10">
+          <h2 class="text-lg font-bold mb-0.5" data-sd-id="11">John Doe</h2>
+          <p class="text-sm text-uber-textMuted font-medium mb-1" data-sd-id="12">john.doe@example.com</p>
+          <span class="text-xs font-bold text-uber-blue uppercase tracking-wider" data-sd-id="13">Edit Profile</span>
+        </div>
+        <iconify-icon icon="lucide:chevron-right" class="text-uber-textMuted text-xl"></iconify-icon>
+      </div>
+    </section>
+
+    <!-- Preferences Section -->
+    <section class="mb-8" data-sd-id="14">
+      <h3 class="text-sm font-bold text-uber-textMuted uppercase tracking-wider mb-3 px-1" data-sd-id="15">Preferences</h3>
+      
+      <div class="bg-uber-white border border-uber-grayDark rounded-xl overflow-hidden shadow-sm flex flex-col" data-sd-id="16">
+        
+        <!-- Notifications Toggle -->
+        <div class="flex items-center justify-between p-4 border-b border-uber-grayDark" data-sd-id="17">
+          <div class="flex items-center gap-3" data-sd-id="18">
+            <div class="w-8 h-8 rounded bg-uber-gray flex items-center justify-center text-uber-textMuted" data-sd-id="19">
+              <iconify-icon icon="lucide:bell" class="text-lg"></iconify-icon>
+            </div>
+            <span class="text-[15px] font-bold" data-sd-id="20">Notifications</span>
+          </div>
+          
+          <!-- Custom Toggle -->
+          <label class="relative inline-flex items-center cursor-pointer" data-sd-id="21">
+            <input type="checkbox" class="sr-only peer" checked="" onchange="handleToggle(this, 'Notifications enabled')" data-sd-id="22">
+            <div class="w-11 h-6 bg-uber-grayDark peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-uber-black" data-sd-id="23">
+            </div>
+          </label>
+        </div>
+
+        <!-- Units Toggle -->
+        <div class="flex items-center justify-between p-4 border-b border-uber-grayDark active:bg-uber-gray transition-colors cursor-pointer" onclick="showToast('Units updated to Lbs')" data-sd-id="24">
+          <div class="flex items-center gap-3" data-sd-id="25">
+            <div class="w-8 h-8 rounded bg-uber-gray flex items-center justify-center text-uber-textMuted" data-sd-id="26">
+              <iconify-icon icon="lucide:scale" class="text-lg"></iconify-icon>
+            </div>
+            <span class="text-[15px] font-bold" data-sd-id="27">Weight Units</span>
+          </div>
+          <div class="flex items-center gap-2" data-sd-id="28">
+            <span class="text-sm font-medium text-uber-textMuted" data-sd-id="29">Kg</span>
+            <iconify-icon icon="lucide:chevron-right" class="text-uber-textMuted text-xl"></iconify-icon>
+          </div>
+        </div>
+
+        <!-- Default Storage -->
+        <div class="flex items-center justify-between p-4 active:bg-uber-gray transition-colors cursor-pointer" data-sd-id="30">
+          <div class="flex items-center gap-3" data-sd-id="31">
+            <div class="w-8 h-8 rounded bg-uber-gray flex items-center justify-center text-uber-textMuted" data-sd-id="32">
+              <iconify-icon icon="lucide:refrigerator" class="text-lg"></iconify-icon>
+            </div>
+            <span class="text-[15px] font-bold" data-sd-id="33">Default Storage</span>
+          </div>
+          <div class="flex items-center gap-2" data-sd-id="34">
+            <span class="text-sm font-medium text-uber-textMuted" data-sd-id="35">Fridge</span>
+            <iconify-icon icon="lucide:chevron-right" class="text-uber-textMuted text-xl"></iconify-icon>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Help & Support -->
+    <section class="mb-8" data-sd-id="36">
+      <h3 class="text-sm font-bold text-uber-textMuted uppercase tracking-wider mb-3 px-1" data-sd-id="37">Help &amp; Support</h3>
+      
+      <div class="bg-uber-white border border-uber-grayDark rounded-xl overflow-hidden shadow-sm flex flex-col" data-sd-id="38">
+        
+        <div class="flex items-center justify-between p-4 border-b border-uber-grayDark active:bg-uber-gray transition-colors cursor-pointer" data-sd-id="39">
+          <div class="flex items-center gap-3" data-sd-id="40">
+            <iconify-icon icon="lucide:help-circle" class="text-uber-textMuted text-xl"></iconify-icon>
+            <span class="text-[15px] font-bold" data-sd-id="41">FAQ</span>
+          </div>
+          <iconify-icon icon="lucide:chevron-right" class="text-uber-textMuted text-xl"></iconify-icon>
+        </div>
+
+        <div class="flex items-center justify-between p-4 border-b border-uber-grayDark active:bg-uber-gray transition-colors cursor-pointer" data-sd-id="42">
+          <div class="flex items-center gap-3" data-sd-id="43">
+            <iconify-icon icon="lucide:message-square" class="text-uber-textMuted text-xl"></iconify-icon>
+            <span class="text-[15px] font-bold" data-sd-id="44">Contact Us</span>
+          </div>
+          <iconify-icon icon="lucide:chevron-right" class="text-uber-textMuted text-xl"></iconify-icon>
+        </div>
+
+        <div class="flex items-center justify-between p-4 active:bg-uber-gray transition-colors cursor-pointer" data-sd-id="45">
+          <div class="flex items-center gap-3" data-sd-id="46">
+            <iconify-icon icon="lucide:info" class="text-uber-textMuted text-xl"></iconify-icon>
+            <span class="text-[15px] font-bold" data-sd-id="47">About FRESCO</span>
+          </div>
+          <iconify-icon icon="lucide:chevron-right" class="text-uber-textMuted text-xl"></iconify-icon>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Account Actions -->
+    <section class="mb-8" data-sd-id="48">
+      <h3 class="text-sm font-bold text-uber-textMuted uppercase tracking-wider mb-3 px-1" data-sd-id="49">Account Actions</h3>
+      
+      <div class="bg-uber-white border border-uber-grayDark rounded-xl overflow-hidden shadow-sm flex flex-col" data-sd-id="50">
+        
+        <div class="flex items-center justify-between p-4 border-b border-uber-grayDark active:bg-uber-gray transition-colors cursor-pointer" data-sd-id="51">
+          <div class="flex items-center gap-3" data-sd-id="52">
+            <iconify-icon icon="lucide:lock" class="text-uber-textMuted text-xl"></iconify-icon>
+            <span class="text-[15px] font-bold" data-sd-id="53">Change Password</span>
+          </div>
+          <iconify-icon icon="lucide:chevron-right" class="text-uber-textMuted text-xl"></iconify-icon>
+        </div>
+
+        <!-- Destructive Action -->
+        <div class="flex items-center justify-between p-4 active:bg-uber-redLight/50 transition-colors cursor-pointer" onclick="showSignOutConfirm()" data-sd-id="54">
+          <div class="flex items-center gap-3 text-uber-red" data-sd-id="55">
+            <iconify-icon icon="lucide:log-out" class="text-xl"></iconify-icon>
+            <span class="text-[15px] font-bold" data-sd-id="56">Sign Out</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- App Version Footer -->
+    <div class="text-center mt-8" data-sd-id="57">
+      <p class="text-xs text-uber-textMuted font-bold uppercase tracking-wider" data-sd-id="58">FRESCO v1.0.4</p>
+      <p class="text-xs text-uber-textMuted/50 mt-1" data-sd-id="59">© 2024 Fresco Inc.</p>
+    </div>
+
+  </main>
+
+  <!-- Success Toast (Hidden) -->
+  <div id="toast-success" class="fixed bottom-[100px] left-5 right-5 z-[70] hidden justify-center pointer-events-none" data-sd-id="60">
+    <div class="bg-uber-black text-uber-white px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 w-full max-w-[340px] animate-fade-in pointer-events-auto" data-sd-id="61">
+      <iconify-icon icon="lucide:check-circle-2" class="text-uber-green text-xl shrink-0"></iconify-icon>
+      <span class="font-bold text-sm" id="toast-msg" data-sd-id="62">Settings saved</span>
+    </div>
+  </div>
+
+  <!-- Sign Out Confirmation Dialog (Hidden) -->
+  <div id="dialog-signout" class="fixed inset-0 z-[80] hidden items-center justify-center px-5" data-sd-id="63">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onclick="hideSignOutConfirm()" data-sd-id="64"></div>
+    <div class="bg-uber-white w-full max-w-[340px] rounded-2xl p-6 relative z-10 animate-slide-up shadow-2xl" data-sd-id="65">
+      <div class="w-12 h-12 bg-uber-redLight rounded-full flex items-center justify-center mb-4 mx-auto" data-sd-id="66">
+        <iconify-icon icon="lucide:log-out" class="text-uber-red text-xl"></iconify-icon>
+      </div>
+      <h3 class="text-lg font-bold text-center mb-2" data-sd-id="67">Sign Out?</h3>
+      <p class="text-sm text-uber-textMuted text-center mb-6" data-sd-id="68">
+        Are you sure you want to sign out of your FRESCO account?
+      </p>
+      <div class="flex gap-3" data-sd-id="69">
+        <button class="flex-1 bg-uber-gray text-uber-black h-12 rounded-xl font-bold text-[15px] active:bg-uber-grayDark transition-colors" onclick="hideSignOutConfirm()" data-sd-id="70">
+          Cancel
+        </button>
+        <button class="flex-1 bg-uber-red text-uber-white h-12 rounded-xl font-bold text-[15px] active:scale-[0.98] transition-transform" onclick="handleSignOut()" data-sd-id="71">
+          Sign Out
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <nav class="absolute bottom-0 left-0 right-0 h-[80px] pb-[24px] bg-uber-white/90 backdrop-blur-md border-t border-uber-grayDark flex justify-around items-center z-40 px-2" data-sd-id="72">
+    <button class="flex flex-col items-center gap-1 p-2 text-uber-textMuted" data-sd-id="73">
+      <iconify-icon icon="lucide:scan-line" class="text-2xl"></iconify-icon>
+      <span class="text-[10px] font-semibold uppercase tracking-wider" data-sd-id="74">Scan</span>
+    </button>
+    <button class="flex flex-col items-center gap-1 p-2 text-uber-textMuted" data-sd-id="75">
+      <iconify-icon icon="lucide:list" class="text-2xl"></iconify-icon>
+      <span class="text-[10px] font-semibold uppercase tracking-wider" data-sd-id="76">Inventory</span>
+    </button>
+    <button class="flex flex-col items-center gap-1 p-2 text-uber-textMuted" data-sd-id="77">
+      <iconify-icon icon="lucide:arrow-left-right" class="text-2xl"></iconify-icon>
+      <span class="text-[10px] font-semibold uppercase tracking-wider" data-sd-id="78">Storage</span>
+    </button>
+    <button class="flex flex-col items-center gap-1 p-2 text-uber-black" data-sd-id="79">
+      <iconify-icon icon="lucide:user" class="text-2xl"></iconify-icon>
+      <span class="text-[10px] font-semibold uppercase tracking-wider" data-sd-id="80">Account</span>
+    </button>
+  </nav>
+
+</div>
+
+<script>
+  // Toast Logic
+  function showToast(msg) {
+    const toast = document.getElementById('toast-success');
+    const toastMsg = document.getElementById('toast-msg');
+    toastMsg.innerText = msg;
+    
+    toast.classList.remove('hidden');
+    toast.classList.add('flex');
+    
+    setTimeout(() => {
+      toast.classList.remove('flex');
+      toast.classList.add('hidden');
+    }, 3000);
+  }
+
+  // Toggle Logic with simulated API call
+  function handleToggle(checkbox, msg) {
+    // Disable temporarily to prevent rapid toggling
+    checkbox.disabled = true;
+    
+    // Simulate API save delay
+    setTimeout(() => {
+      checkbox.disabled = false;
+      if (checkbox.checked) {
+         showToast(msg);
+      } else {
+         showToast(msg.replace('enabled', 'disabled'));
+      }
+    }, 500);
+  }
+
+  // Sign Out Dialog Logic
+  function showSignOutConfirm() {
+    const dialog = document.getElementById('dialog-signout');
+    dialog.classList.remove('hidden');
+    dialog.classList.add('flex');
+  }
+
+  function hideSignOutConfirm() {
+    const dialog = document.getElementById('dialog-signout');
+    dialog.classList.remove('flex');
+    dialog.classList.add('hidden');
+  }
+
+  function handleSignOut() {
+    // In a real app, this would clear auth tokens and redirect
+    hideSignOutConfirm();
+    showToast('Signing out...');
+    setTimeout(() => {
+      // Redirect simulation
+      window.location.href = '#landing';
+    }, 1000);
+  }
+</script>
+
+
+</body></html>

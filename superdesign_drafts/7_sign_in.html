@@ -1,0 +1,161 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>FRESCO - Sign In</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'sans-serif'] },
+      colors: {
+        uber: {
+          black: '#000000',
+          white: '#FFFFFF',
+          gray: '#F6F6F6',
+          grayDark: '#EEEEEE',
+          text: '#000000',
+          textMuted: '#545454',
+          blue: '#276EF1',
+          red: '#E11900',
+          redLight: '#FCE8E6'
+        }
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { -webkit-tap-highlight-color: transparent; }
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .state-layer { display: none; }
+  .state-layer.active { display: flex; }
+</style>
+</head>
+<body class="bg-uber-white text-uber-text font-sans">
+
+<div class="w-full h-screen flex flex-col justify-center px-6" data-sd-id="1">
+
+  <div class="w-full max-w-[400px] mx-auto" data-sd-id="2">
+    <!-- Header -->
+    <div class="mb-8 text-center" data-sd-id="3">
+      <h1 class="text-2xl font-bold tracking-tight lowercase mb-1" data-sd-id="4">fresco</h1>
+      <p class="text-sm text-uber-textMuted font-medium" data-sd-id="5">Welcome back</p>
+    </div>
+
+    <!-- Error Banner (Idle: Hidden, Error: flex) -->
+    <div id="error-banner" class="hidden items-start gap-3 bg-uber-redLight border border-uber-red/20 rounded-xl p-4 mb-6" data-sd-id="6">
+      <iconify-icon icon="lucide:alert-circle" class="text-uber-red text-lg shrink-0 mt-0.5"></iconify-icon>
+      <div class="flex-1" data-sd-id="7">
+        <p class="text-[13px] font-bold text-uber-red" data-sd-id="8">Invalid email or password</p>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <form onsubmit="event.preventDefault(); handleSignIn();" class="flex flex-col gap-5" data-sd-id="9">
+      
+      <!-- Email -->
+      <div data-sd-id="10">
+        <label for="email" class="block text-sm font-bold mb-2" data-sd-id="11">Email</label>
+        <input type="email" id="email" placeholder="you@example.com" required="" class="w-full h-14 px-4 bg-uber-gray border border-transparent rounded-xl text-[15px] font-medium placeholder:text-uber-textMuted/50 outline-none focus:border-uber-black focus:bg-uber-white transition-colors" data-sd-id="12">
+      </div>
+
+      <!-- Password -->
+      <div data-sd-id="13">
+        <label for="password" class="block text-sm font-bold mb-2" data-sd-id="14">Password</label>
+        <div class="relative" data-sd-id="15">
+          <input type="password" id="password" placeholder="••••••••" required="" class="w-full h-14 pl-4 pr-12 bg-uber-gray border border-transparent rounded-xl text-[15px] font-medium placeholder:text-uber-textMuted/50 outline-none focus:border-uber-black focus:bg-uber-white transition-colors" data-sd-id="16">
+          <button type="button" onclick="togglePassword()" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-uber-textMuted active:text-uber-black" data-sd-id="17">
+            <iconify-icon id="eye-icon" icon="lucide:eye" class="text-xl"></iconify-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <button type="submit" id="submit-btn" class="w-full h-14 mt-2 bg-uber-black text-uber-white rounded-xl font-bold text-[15px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-70 disabled:active:scale-100 disabled:cursor-not-allowed" data-sd-id="18">
+        <span id="btn-text" data-sd-id="19">Sign In</span>
+        <iconify-icon id="btn-spinner" icon="lucide:loader-2" class="hidden text-xl animate-spin"></iconify-icon>
+      </button>
+
+    </form>
+
+    <!-- Footer -->
+    <div class="mt-8 text-center" data-sd-id="20">
+      <p class="text-sm text-uber-textMuted font-medium" data-sd-id="21">
+        Don't have an account? 
+        <a href="#signup" class="text-uber-black font-bold underline underline-offset-2 ml-1" id="link-signup" data-sd-id="22">Sign up</a>
+      </p>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+  let isErrorState = false;
+
+  function togglePassword() {
+    const pwd = document.getElementById('password');
+    const icon = document.getElementById('eye-icon');
+    if (pwd.type === 'password') {
+      pwd.type = 'text';
+      icon.setAttribute('icon', 'lucide:eye-off');
+    } else {
+      pwd.type = 'password';
+      icon.setAttribute('icon', 'lucide:eye');
+    }
+  }
+
+  function handleSignIn() {
+    const btn = document.getElementById('submit-btn');
+    const btnText = document.getElementById('btn-text');
+    const spinner = document.getElementById('btn-spinner');
+    const errorBanner = document.getElementById('error-banner');
+    const inputs = document.querySelectorAll('input');
+
+    // Hide error if visible
+    errorBanner.classList.add('hidden');
+    errorBanner.classList.remove('flex');
+
+    // Set loading state
+    btn.disabled = true;
+    btnText.innerText = 'Signing in...';
+    spinner.classList.remove('hidden');
+    inputs.forEach(input => input.disabled = true);
+
+    // Simulate API call
+    setTimeout(() => {
+      // Toggle between error and success for demonstration
+      if (!isErrorState) {
+        // Error state
+        btn.disabled = false;
+        btnText.innerText = 'Sign In';
+        spinner.classList.add('hidden');
+        inputs.forEach(input => input.disabled = false);
+        errorBanner.classList.remove('hidden');
+        errorBanner.classList.add('flex');
+        isErrorState = true;
+      } else {
+        // Success state (would redirect in real app)
+        btnText.innerText = 'Success';
+        spinner.classList.add('hidden');
+        setTimeout(() => {
+          // Reset form
+          btn.disabled = false;
+          btnText.innerText = 'Sign In';
+          inputs.forEach(input => {
+            input.disabled = false;
+            input.value = '';
+          });
+          isErrorState = false;
+        }, 1500);
+      }
+    }, 1500);
+  }
+</script>
+
+
+</body></html>

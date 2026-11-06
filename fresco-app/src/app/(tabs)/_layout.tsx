@@ -37,8 +37,8 @@ function ScanIcon(args: IconProps) {
 function InventoryIcon(args: IconProps) {
   return <TabIcon outline="list-outline" filled="list" {...args} />;
 }
-function IdeasIcon(args: IconProps) {
-  return <TabIcon outline="bulb-outline" filled="bulb" {...args} />;
+function StorageIcon(args: IconProps) {
+  return <TabIcon outline="swap-horizontal-outline" filled="swap-horizontal" {...args} />;
 }
 function AccountIcon(args: IconProps) {
   return <TabIcon outline="person-outline" filled="person" {...args} />;
@@ -85,8 +85,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="ideas"
         options={{
-          title: "Ideas",
-          tabBarIcon: IdeasIcon,
+          title: "Storage",
+          tabBarIcon: StorageIcon,
         }}
       />
       <Tabs.Screen

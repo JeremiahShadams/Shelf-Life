@@ -1,0 +1,76 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>FRESCO - Landing</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'sans-serif'] },
+      colors: {
+        uber: {
+          black: '#000000',
+          white: '#FFFFFF',
+          gray: '#F6F6F6',
+          grayDark: '#EEEEEE',
+          text: '#000000',
+          textMuted: '#545454',
+          blue: '#276EF1'
+        }
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { -webkit-tap-highlight-color: transparent; }
+</style>
+</head>
+<body class="bg-uber-white">
+
+<div class="w-full h-screen flex flex-col bg-uber-white text-uber-text font-sans overflow-hidden" data-sd-id="1">
+
+  <!-- Main Content Centered -->
+  <main class="flex-1 flex flex-col items-center justify-center px-5 -mt-10" data-sd-id="2">
+    <div class="text-3xl font-bold tracking-tight lowercase mb-1" data-sd-id="3">fresco</div>
+    <p class="text-[15px] font-medium text-uber-textMuted mb-8" data-sd-id="4">Know your fruit.</p>
+    
+    <button class="w-full max-w-[280px] bg-uber-black text-uber-white h-14 rounded-xl font-bold text-[15px] active:scale-[0.98] transition-transform" data-sd-id="5">
+      Scan Your First Fruit
+    </button>
+
+    <div class="mt-8" data-sd-id="6">
+       <p class="text-sm text-uber-textMuted font-medium" data-sd-id="7">
+         Already have an account? 
+         <a href="#signin" class="text-uber-black font-bold underline underline-offset-2 ml-1" id="link-signin" data-sd-id="8">Sign in</a>
+       </p>
+    </div>
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="shrink-0 pb-[34px] pt-2 border-t border-uber-grayDark flex justify-around items-center px-2 bg-uber-white h-[80px]" data-sd-id="9">
+    <button class="flex flex-col items-center gap-1 p-2 text-uber-textMuted" data-sd-id="10">
+      <iconify-icon icon="lucide:scan-line" class="text-2xl"></iconify-icon>
+      <span class="text-[10px] font-semibold uppercase tracking-wider" data-sd-id="11">Scan</span>
+    </button>
+    <button class="flex flex-col items-center gap-1 p-2 text-uber-textMuted" data-sd-id="12">
+      <iconify-icon icon="lucide:list" class="text-2xl"></iconify-icon>
+      <span class="text-[10px] font-semibold uppercase tracking-wider" data-sd-id="13">Inventory</span>
+    </button>
+    <button class="flex flex-col items-center gap-1 p-2 text-uber-textMuted" data-sd-id="14">
+      <iconify-icon icon="lucide:arrow-left-right" class="text-2xl"></iconify-icon>
+      <span class="text-[10px] font-semibold uppercase tracking-wider" data-sd-id="15">Storage</span>
+    </button>
+    <button class="flex flex-col items-center gap-1 p-2 text-uber-textMuted" data-sd-id="16">
+      <iconify-icon icon="lucide:user" class="text-2xl"></iconify-icon>
+      <span class="text-[10px] font-semibold uppercase tracking-wider" data-sd-id="17">Account</span>
+    </button>
+  </nav>
+
+</div>
+
+
+</body></html>

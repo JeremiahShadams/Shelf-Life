@@ -1,0 +1,255 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>FRESCO - Sign Up</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'sans-serif'] },
+      colors: {
+        uber: {
+          black: '#000000',
+          white: '#FFFFFF',
+          gray: '#F6F6F6',
+          grayDark: '#EEEEEE',
+          text: '#000000',
+          textMuted: '#545454',
+          blue: '#276EF1',
+          red: '#E11900',
+          redLight: '#FCE8E6',
+          green: '#05A357'
+        }
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { -webkit-tap-highlight-color: transparent; }
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
+</head>
+<body class="bg-uber-white text-uber-text font-sans">
+
+<div class="w-full h-screen flex flex-col" data-sd-id="1">
+
+  <main class="flex-1 overflow-y-auto hide-scrollbar px-6 pt-14 pb-[34px] flex flex-col justify-center" data-sd-id="2">
+    <div class="w-full max-w-[400px] mx-auto py-8" data-sd-id="3">
+      
+      <!-- Header -->
+      <div class="mb-8 text-center" data-sd-id="4">
+        <h1 class="text-2xl font-bold tracking-tight lowercase mb-1" data-sd-id="5">fresco</h1>
+        <p class="text-sm text-uber-textMuted font-medium" data-sd-id="6">Create your account</p>
+      </div>
+
+      <!-- Error Banner -->
+      <div id="error-banner" class="hidden items-start gap-3 bg-uber-redLight border border-uber-red/20 rounded-xl p-4 mb-6" role="alert" data-sd-id="7">
+        <iconify-icon icon="lucide:alert-circle" class="text-uber-red text-lg shrink-0 mt-0.5"></iconify-icon>
+        <div class="flex-1" data-sd-id="8">
+          <p class="text-[13px] font-bold text-uber-red" id="error-msg" data-sd-id="9">Please fix the errors below.</p>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <form id="signup-form" onsubmit="event.preventDefault(); handleSignUp();" class="flex flex-col gap-4" data-sd-id="10">
+        
+        <!-- Username -->
+        <div data-sd-id="11">
+          <label for="username" class="block text-sm font-bold mb-2" data-sd-id="12">Username</label>
+          <input type="text" id="username" placeholder="john_doe" required="" class="w-full h-14 px-4 bg-uber-gray border border-transparent rounded-xl text-[15px] font-medium placeholder:text-uber-textMuted/50 outline-none focus:border-uber-black focus:bg-uber-white transition-colors" data-sd-id="13">
+        </div>
+
+        <!-- Email -->
+        <div data-sd-id="14">
+          <label for="email" class="block text-sm font-bold mb-2" data-sd-id="15">Email</label>
+          <input type="email" id="email" placeholder="you@example.com" required="" class="w-full h-14 px-4 bg-uber-gray border border-transparent rounded-xl text-[15px] font-medium placeholder:text-uber-textMuted/50 outline-none focus:border-uber-black focus:bg-uber-white transition-colors" data-sd-id="16">
+        </div>
+
+        <!-- Password -->
+        <div data-sd-id="17">
+          <label for="password" class="block text-sm font-bold mb-2" data-sd-id="18">Password</label>
+          <div class="relative" data-sd-id="19">
+            <input type="password" id="password" placeholder="Min 6 characters" required="" minlength="6" oninput="checkPasswordStrength()" class="w-full h-14 pl-4 pr-12 bg-uber-gray border border-transparent rounded-xl text-[15px] font-medium placeholder:text-uber-textMuted/50 outline-none focus:border-uber-black focus:bg-uber-white transition-colors" data-sd-id="20">
+            <button type="button" onclick="togglePassword('password', 'eye-icon-1')" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-uber-textMuted active:text-uber-black" aria-label="Toggle password visibility" data-sd-id="21">
+              <iconify-icon id="eye-icon-1" icon="lucide:eye" class="text-xl"></iconify-icon>
+            </button>
+          </div>
+          <!-- Strength Indicator -->
+          <div class="mt-2 flex gap-1" data-sd-id="22">
+             <div id="strength-1" class="h-1 flex-1 bg-uber-grayDark rounded-full transition-colors duration-300" data-sd-id="23"></div>
+             <div id="strength-2" class="h-1 flex-1 bg-uber-grayDark rounded-full transition-colors duration-300" data-sd-id="24"></div>
+             <div id="strength-3" class="h-1 flex-1 bg-uber-grayDark rounded-full transition-colors duration-300" data-sd-id="25"></div>
+          </div>
+          <p id="strength-text" class="text-xs text-uber-textMuted mt-1.5 font-medium" data-sd-id="26">Must be at least 6 characters</p>
+        </div>
+
+        <!-- Confirm Password -->
+        <div class="mb-2" data-sd-id="27">
+          <label for="confirm-password" class="block text-sm font-bold mb-2" data-sd-id="28">Confirm Password</label>
+          <div class="relative" data-sd-id="29">
+            <input type="password" id="confirm-password" placeholder="Repeat password" required="" class="w-full h-14 pl-4 pr-12 bg-uber-gray border border-transparent rounded-xl text-[15px] font-medium placeholder:text-uber-textMuted/50 outline-none focus:border-uber-black focus:bg-uber-white transition-colors" data-sd-id="30">
+            <button type="button" onclick="togglePassword('confirm-password', 'eye-icon-2')" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-uber-textMuted active:text-uber-black" aria-label="Toggle password visibility" data-sd-id="31">
+              <iconify-icon id="eye-icon-2" icon="lucide:eye" class="text-xl"></iconify-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" id="submit-btn" class="w-full h-14 mt-4 bg-uber-black text-uber-white rounded-xl font-bold text-[15px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-70 disabled:active:scale-100 disabled:cursor-not-allowed" data-sd-id="32">
+          <span id="btn-text" data-sd-id="33">Create Account</span>
+          <iconify-icon id="btn-spinner" icon="lucide:loader-2" class="hidden text-xl animate-spin"></iconify-icon>
+        </button>
+
+      </form>
+
+      <!-- Footer -->
+      <div class="mt-8 text-center pb-8" data-sd-id="34">
+        <p class="text-sm text-uber-textMuted font-medium" data-sd-id="35">
+          Already have an account? 
+          <a href="#signin" class="text-uber-black font-bold underline underline-offset-2 ml-1" id="link-signin" data-sd-id="36">Sign in</a>
+        </p>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+<script>
+  let isErrorState = false;
+
+  function togglePassword(inputId, iconId) {
+    const pwd = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    if (pwd.type === 'password') {
+      pwd.type = 'text';
+      icon.setAttribute('icon', 'lucide:eye-off');
+    } else {
+      pwd.type = 'password';
+      icon.setAttribute('icon', 'lucide:eye');
+    }
+  }
+
+  function checkPasswordStrength() {
+    const pwd = document.getElementById('password').value;
+    const s1 = document.getElementById('strength-1');
+    const s2 = document.getElementById('strength-2');
+    const s3 = document.getElementById('strength-3');
+    const text = document.getElementById('strength-text');
+    
+    // Reset
+    [s1, s2, s3].forEach(el => {
+      el.classList.remove('bg-uber-red', 'bg-uber-amber', 'bg-uber-green', 'bg-uber-grayDark');
+    });
+
+    if (pwd.length === 0) {
+      [s1, s2, s3].forEach(el => el.classList.add('bg-uber-grayDark'));
+      text.innerText = 'Must be at least 6 characters';
+      text.classList.remove('text-uber-green', 'text-uber-red');
+      text.classList.add('text-uber-textMuted');
+      return;
+    }
+
+    let score = 0;
+    if (pwd.length >= 6) score += 1;
+    if (pwd.length >= 8 && /[a-zA-Z]/.test(pwd) && /[0-9]/.test(pwd)) score += 1;
+    if (pwd.length >= 10 && /[^a-zA-Z0-9]/.test(pwd)) score += 1;
+
+    if (score === 0 || score === 1) {
+      s1.classList.add('bg-uber-red');
+      [s2, s3].forEach(el => el.classList.add('bg-uber-grayDark'));
+      text.innerText = pwd.length < 6 ? 'Too short' : 'Weak password';
+      text.classList.add('text-uber-red');
+      text.classList.remove('text-uber-textMuted', 'text-uber-green');
+    } else if (score === 2) {
+      s1.classList.add('bg-uber-amber');
+      s2.classList.add('bg-uber-amber');
+      s3.classList.add('bg-uber-grayDark');
+      text.innerText = 'Good password';
+      text.classList.remove('text-uber-red', 'text-uber-green');
+      text.classList.add('text-uber-textMuted');
+    } else {
+      s1.classList.add('bg-uber-green');
+      s2.classList.add('bg-uber-green');
+      s3.classList.add('bg-uber-green');
+      text.innerText = 'Strong password';
+      text.classList.add('text-uber-green');
+      text.classList.remove('text-uber-red', 'text-uber-textMuted');
+    }
+  }
+
+  function handleSignUp() {
+    const pwd = document.getElementById('password').value;
+    const confirmPwd = document.getElementById('confirm-password').value;
+    const btn = document.getElementById('submit-btn');
+    const btnText = document.getElementById('btn-text');
+    const spinner = document.getElementById('btn-spinner');
+    const errorBanner = document.getElementById('error-banner');
+    const errorMsg = document.getElementById('error-msg');
+    const inputs = document.querySelectorAll('input');
+
+    // Client-side validation
+    if (pwd !== confirmPwd) {
+      showError('Passwords do not match.');
+      return;
+    }
+    if (pwd.length < 6) {
+      showError('Password must be at least 6 characters.');
+      return;
+    }
+
+    // Hide error if visible
+    errorBanner.classList.add('hidden');
+    errorBanner.classList.remove('flex');
+
+    // Set loading state
+    btn.disabled = true;
+    btnText.innerText = 'Creating Account...';
+    spinner.classList.remove('hidden');
+    inputs.forEach(input => input.disabled = true);
+
+    // Simulate API call
+    setTimeout(() => {
+      if (!isErrorState) {
+        // Simulate server error
+        showError('Username is already taken.');
+        btn.disabled = false;
+        btnText.innerText = 'Create Account';
+        spinner.classList.add('hidden');
+        inputs.forEach(input => input.disabled = false);
+        isErrorState = true;
+      } else {
+        // Success state
+        btnText.innerText = 'Account Created';
+        spinner.classList.add('hidden');
+        setTimeout(() => {
+           // Reset form (simulating redirect)
+           btn.disabled = false;
+           btnText.innerText = 'Create Account';
+           inputs.forEach(input => {
+             input.disabled = false;
+             input.value = '';
+           });
+           checkPasswordStrength();
+           isErrorState = false;
+        }, 1500);
+      }
+    }, 1500);
+  }
+
+  function showError(msg) {
+    const errorBanner = document.getElementById('error-banner');
+    const errorMsg = document.getElementById('error-msg');
+    errorMsg.innerText = msg;
+    errorBanner.classList.remove('hidden');
+    errorBanner.classList.add('flex');
+  }
+</script>
+
+
+</body></html>
