@@ -87,3 +87,19 @@ async def init_db():
     """
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        if "sqlite" in db_url:
+            def _check_and_add_columns(sync_conn):
+                raw_cursor = sync_conn.connection.cursor()
+                raw_cursor.execute("PRAGMA table_info(users)")
+                columns = {row[1] for row in raw_cursor.fetchall()}
+                new_cols = [
+                    ("push_token", "VARCHAR(255)"),
+                    ("notifications_enabled", "BOOLEAN DEFAULT 1"),
+                    ("weight_unit", "VARCHAR(10) DEFAULT 'kg'"),
+                    ("default_storage", "VARCHAR(20) DEFAULT 'fridge'"),
+                ]
+                for col_name, col_def in new_cols:
+                    if col_name not in columns:
+                        raw_cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
+                sync_conn.connection.commit()
+            await conn.run_sync(_check_and_add_columns)

@@ -31,6 +31,8 @@ from app.schemas.schemas import (
     UserLogin,
     TokenResponse,
     UserPublic,
+    UserProfileUpdate,
+    ChangePasswordRequest,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -156,3 +158,71 @@ async def read_current_user(
     existence, so a 200 here means the stored session is still usable.
     """
     return UserPublic.model_validate(user)
+
+
+@router.patch(
+    "/profile",
+    response_model=UserPublic,
+    summary="Update user preferences & push token",
+)
+async def update_profile(
+    data: UserProfileUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Update notification preferences, units, default storage, or push token.
+    """
+    if data.push_token is not None:
+        current_user.push_token = data.push_token
+    if data.notifications_enabled is not None:
+        current_user.notifications_enabled = data.notifications_enabled
+    if data.weight_unit is not None:
+        current_user.weight_unit = data.weight_unit
+    if data.default_storage is not None:
+        current_user.default_storage = data.default_storage
+
+    await db.commit()
+    await db.refresh(current_user)
+    return UserPublic.model_validate(current_user)
+
+
+@router.post(
+    "/change-password",
+    summary="Change user password",
+)
+async def change_password(
+    data: ChangePasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Verify existing password and set new secure password.
+    """
+    if not verify_password(data.old_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+    current_user.password_hash = hash_password(data.new_password)
+    await db.commit()
+    return {"message": "Password changed successfully"}
+
+
+@router.delete(
+    "/account",
+    summary="Delete user account",
+    description="Permanently deletes user account, inventory, and alerts (App Store guideline 5.1.1 compliant).",
+)
+async def delete_account(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Apple App Store Guideline 5.1.1 compliant account deletion.
+    Cascades through user_inventory and notifications automatically.
+    """
+    await db.delete(current_user)
+    await db.commit()
+    return {"message": "Account successfully deleted"}
+

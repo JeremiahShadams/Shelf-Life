@@ -336,6 +336,34 @@ class UserPublic(BaseModel):
     id: int
     username: str
     email: str
+    push_token: str | None = None
+    notifications_enabled: bool = True
+    weight_unit: str = "kg"
+    default_storage: str = "fridge"
+    created_at: datetime | None = None
+
+
+class UserProfileUpdate(BaseModel):
+    """Schema for updating user profile preferences and push notification token."""
+    push_token: str | None = None
+    notifications_enabled: bool | None = None
+    weight_unit: str | None = None
+    default_storage: str | None = None
+
+
+class ChangePasswordRequest(BaseModel):
+    """Schema for changing user password."""
+    old_password: str = Field(...)
+    new_password: str = Field(..., min_length=8)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_complexity(cls, v: str) -> str:
+        if not re.search(r"[a-zA-Z]", v):
+            raise ValueError("Password must contain at least one letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one digit")
+        return v
 
 
 class TokenResponse(BaseModel):

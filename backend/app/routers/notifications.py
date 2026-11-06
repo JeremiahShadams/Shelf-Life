@@ -6,8 +6,8 @@ inventory endpoints when an item is added or its storage changes; this
 router is how the client ever sees them.
 """
 
-from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
@@ -45,3 +45,66 @@ async def list_notifications(
         ],
         total=len(notifications),
     )
+
+
+@router.patch(
+    "/{notification_id}/read",
+    response_model=NotificationResponse,
+    summary="Mark a notification as read",
+)
+async def mark_notification_read(
+    notification_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    """
+    Mark an individual notification as read (sent = True).
+    """
+    result = await db.execute(
+        select(Notification)
+        .join(UserInventory, Notification.inventory_id == UserInventory.id)
+        .where(
+            Notification.id == notification_id,
+            UserInventory.user_id == current_user.id,
+        )
+    )
+    notification = result.scalar_one_or_none()
+    if not notification:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notification not found",
+        )
+
+    notification.sent = True
+    await db.commit()
+    await db.refresh(notification)
+
+    return NotificationResponse.model_validate(notification)
+
+
+@router.post(
+    "/mark-all-read",
+    summary="Mark all user notifications as read",
+)
+async def mark_all_notifications_read(
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    """
+    Mark all unread notifications for the current user as read.
+    """
+    result = await db.execute(
+        select(Notification)
+        .join(UserInventory, Notification.inventory_id == UserInventory.id)
+        .where(
+            UserInventory.user_id == current_user.id,
+            Notification.sent == False,
+        )
+    )
+    notifications = result.scalars().all()
+    for n in notifications:
+        n.sent = True
+
+    await db.commit()
+    return {"message": "All notifications marked as read", "count": len(notifications)}
+
