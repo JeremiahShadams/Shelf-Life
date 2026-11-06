@@ -28,7 +28,7 @@ function useProtectedRoute(status: AuthStatus) {
 
     const inAuthGroup = segments[0] === "(auth)";
     if (status === "anon" && !inAuthGroup) {
-      router.replace("/(auth)/login");
+      router.replace("/(auth)/landing");
     } else if (status === "authed" && inAuthGroup) {
       router.replace("/");
     }
