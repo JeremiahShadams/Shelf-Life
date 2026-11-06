@@ -27,10 +27,10 @@ import {
   Loading,
   Text,
 } from "../components/ui";
-import { AddedSuccessView } from "../components/fridge";
-import { useAddToInventory } from "../hooks/useInventory";
+import { AddedSuccessView, DuplicateItemDialog } from "../components/fridge";
+import { useAddToInventory, useInventory, useUpdateInventoryItem } from "../hooks/useInventory";
 import { useFruitSearch } from "../hooks/useFruits";
-import type { Fruit, StorageMethod } from "../types/api";
+import type { Fruit, InventoryItem, StorageMethod } from "../types/api";
 
 const STORAGE_OPTIONS: { key: StorageMethod; label: string }[] = [
   { key: "room_temp", label: "Counter" },
@@ -66,7 +66,12 @@ export default function AddItemScreen() {
   }, [query]);
 
   const fruitsQuery = useFruitSearch(debouncedQuery);
+  const inventoryQuery = useInventory();
   const addMutation = useAddToInventory();
+  const updateMutation = useUpdateInventoryItem();
+
+  const [duplicateModalVisible, setDuplicateModalVisible] = useState(false);
+  const [existingMatch, setExistingMatch] = useState<InventoryItem | null>(null);
 
   function chooseFruit(fruit: Fruit) {
     Keyboard.dismiss();
@@ -80,7 +85,7 @@ export default function AddItemScreen() {
     router.back();
   }
 
-  function save() {
+  function executeAdd() {
     if (selected == null) return;
     setAddError(null);
     addMutation.mutate(
@@ -97,6 +102,48 @@ export default function AddItemScreen() {
           ),
       },
     );
+  }
+
+  function save() {
+    if (selected == null) return;
+    const existing = inventoryQuery.data?.items.find(
+      (it) => it.fruit_id === selected.id && !it.is_consumed,
+    );
+    if (existing) {
+      setExistingMatch(existing);
+      setDuplicateModalVisible(true);
+      return;
+    }
+    executeAdd();
+  }
+
+  function handleAddToQuantity() {
+    if (!existingMatch) return;
+    setAddError(null);
+    updateMutation.mutate(
+      {
+        itemId: existingMatch.id,
+        update: {
+          quantity: (existingMatch.quantity || 1) + quantity,
+        },
+      },
+      {
+        onSuccess: () => {
+          setDuplicateModalVisible(false);
+          setAdded(true);
+        },
+        onError: (err) => {
+          setAddError(
+            err instanceof Error ? err.message : "Couldn't update quantity. Try again.",
+          );
+        },
+      },
+    );
+  }
+
+  function handleCreateNewEntry() {
+    setDuplicateModalVisible(false);
+    executeAdd();
   }
 
   function addAnother() {
@@ -350,6 +397,19 @@ export default function AddItemScreen() {
             />
           )}
         </View>
+      )}
+
+      {selected != null && (
+        <DuplicateItemDialog
+          visible={duplicateModalVisible}
+          fruitName={selected.name}
+          existingQuantity={existingMatch?.quantity ?? 1}
+          newQuantity={quantity}
+          loading={updateMutation.isPending || addMutation.isPending}
+          onAddToQuantity={handleAddToQuantity}
+          onCreateNew={handleCreateNewEntry}
+          onCancel={() => setDuplicateModalVisible(false)}
+        />
       )}
     </SafeAreaView>
   );

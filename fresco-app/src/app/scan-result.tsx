@@ -11,8 +11,9 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../theme";
 import { Badge, Button, Card, ErrorState, Text } from "../components/ui";
-import { useAddToInventory } from "../hooks/useInventory";
-import type { ScanResult, StorageMethod } from "../types";
+import { DuplicateItemDialog } from "../components/fridge";
+import { useAddToInventory, useInventory, useUpdateInventoryItem } from "../hooks/useInventory";
+import type { InventoryItem, ScanResult, StorageMethod } from "../types";
 
 const STORAGE_OPTIONS: { key: StorageMethod; label: string }[] = [
   { key: "room_temp", label: "Counter" },
@@ -48,7 +49,12 @@ export default function ScanResultScreen() {
     }
   }, [params.scan]);
 
+  const inventoryQuery = useInventory();
   const addToFridge = useAddToInventory();
+  const updateMutation = useUpdateInventoryItem();
+  const [duplicateModalVisible, setDuplicateModalVisible] = useState(false);
+  const [existingMatch, setExistingMatch] = useState<InventoryItem | null>(null);
+
   const [storageMethod, setStorageMethod] = useState<StorageMethod>(
     result?.best_storage ?? "fridge",
   );
@@ -71,7 +77,7 @@ export default function ScanResultScreen() {
   const selectedDays = result.estimated_shelf_life[storageMethod];
   const statusLabel = STATUS_LABEL[result.status] ?? result.status;
 
-  function handleAdd() {
+  function executeAdd() {
     setAddError(null);
     addToFridge.mutate(
       {
@@ -91,6 +97,49 @@ export default function ScanResultScreen() {
         },
       },
     );
+  }
+
+  function handleAdd() {
+    if (result == null) return;
+    const existing = inventoryQuery.data?.items.find(
+      (it) => it.fruit_id === result.fruit.id && !it.is_consumed,
+    );
+    if (existing) {
+      setExistingMatch(existing);
+      setDuplicateModalVisible(true);
+      return;
+    }
+    executeAdd();
+  }
+
+  function handleAddToQuantity() {
+    if (!existingMatch) return;
+    setAddError(null);
+    updateMutation.mutate(
+      {
+        itemId: existingMatch.id,
+        update: {
+          quantity: (existingMatch.quantity || 1) + 1,
+        },
+      },
+      {
+        onSuccess: () => {
+          setDuplicateModalVisible(false);
+          setAdded(true);
+          setTimeout(() => router.back(), 800);
+        },
+        onError: (err) => {
+          setAddError(
+            err instanceof Error ? err.message : "Couldn't update quantity. Try again.",
+          );
+        },
+      },
+    );
+  }
+
+  function handleCreateNewEntry() {
+    setDuplicateModalVisible(false);
+    executeAdd();
   }
 
   return (
@@ -208,6 +257,19 @@ export default function ScanResultScreen() {
           style={{ marginTop: spacing.l }}
         />
       </ScrollView>
+
+      {result != null && (
+        <DuplicateItemDialog
+          visible={duplicateModalVisible}
+          fruitName={result.fruit.name}
+          existingQuantity={existingMatch?.quantity ?? 1}
+          newQuantity={1}
+          loading={updateMutation.isPending || addToFridge.isPending}
+          onAddToQuantity={handleAddToQuantity}
+          onCreateNew={handleCreateNewEntry}
+          onCancel={() => setDuplicateModalVisible(false)}
+        />
+      )}
     </View>
   );
 }
