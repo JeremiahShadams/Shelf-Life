@@ -63,3 +63,4 @@ volumes:
     driver: local
   fresco_uploads:
     driver: local
+

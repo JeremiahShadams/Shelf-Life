@@ -135,3 +135,4 @@ EAS handles code signing, distribution certificates, and provisioning profiles a
 ## 5. Ongoing Monitoring & Automated Alerts
 - The backend background worker automatically scans for due notifications and delivers push notifications to registered device tokens via Expo Push Service.
 - Check health and AI model status anytime: `https://api.frescoapp.com/api/health`.
+

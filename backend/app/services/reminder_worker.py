@@ -110,3 +110,4 @@ async def reminder_worker_loop(interval_seconds: int = 900) -> None:
             logger.error("Unexpected error in reminder worker loop: %s", exc)
 
         await asyncio.sleep(interval_seconds)
+

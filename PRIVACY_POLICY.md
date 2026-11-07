@@ -49,3 +49,4 @@ FRESCO does not knowingly collect personal information from children under the a
 If you have questions or concerns regarding this Privacy Policy, please reach out to us at:
 - **Email**: `privacy@frescoapp.com` or `support@frescoapp.com`
 - **Website**: `https://frescoapp.com`
+

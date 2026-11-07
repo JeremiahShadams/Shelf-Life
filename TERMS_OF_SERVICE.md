@@ -35,3 +35,4 @@ To the maximum extent permitted by applicable law, FRESCO and its developers sha
 
 ### 6. Contact
 For questions regarding these Terms, contact `legal@frescoapp.com`.
+
