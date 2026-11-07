@@ -168,7 +168,7 @@ export function ProcessingOverlay({ visible, onCancel }: ProcessingOverlayProps)
 const styles = StyleSheet.create({
   overlayContainer: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.82)",
+    backgroundColor: "rgba(13, 23, 17, 0.88)",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
@@ -191,8 +191,8 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.35)",
+    borderWidth: 2.5,
+    borderColor: "#22C55E",
   },
   textContainer: {
     alignItems: "center",
@@ -222,3 +222,4 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
   },
 });
+

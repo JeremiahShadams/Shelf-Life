@@ -92,8 +92,8 @@ export default function LoginScreen() {
           <View style={styles.formContainer}>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.brandTitle}>fresco</Text>
-              <Text style={styles.subtitle}>Welcome back</Text>
+              <Text style={[styles.brandTitle, { color: colors.textPrimary }]}>fresco</Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Welcome back</Text>
             </View>
 
             {/* Error Alert Banner */}
@@ -227,7 +227,7 @@ export default function LoginScreen() {
                 onPress={() => router.push("/(auth)/register")}
                 hitSlop={8}
               >
-                <Text style={styles.signUpLink}>Sign up</Text>
+                <Text style={[styles.signUpLink, { color: colors.primary }]}>Sign up</Text>
               </Pressable>
             </View>
           </View>
@@ -262,13 +262,11 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "900",
     letterSpacing: -0.8,
-    color: "#000000",
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#545454",
   },
   errorBanner: {
     flexDirection: "row",
@@ -336,7 +334,6 @@ const styles = StyleSheet.create({
   signUpLink: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#000000",
     textDecorationLine: "underline",
   },
 });

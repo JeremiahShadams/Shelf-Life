@@ -1,101 +1,108 @@
 /**
- * FRESCO — Uber Base Design System Colors
- * High contrast, bold, minimalist.
- * Absolute Black (#000000) and White (#FFFFFF) as primary colors.
- * Uber Blue (#276EF1) only for accents, links, and key indicators.
+ * FRESCO — Fresh Organic Produce Design System
+ * Warm, natural, appetizing food palette.
+ * Rich botanical greens (#15803D / #22C55E), fresh crisp produce accents,
+ * warm ivory canvas (#F8FAF6), and deep organic forest dark mode (#0D1711).
  */
 
 export const light = {
-  // Canvas & Surfaces
-  background: "#FFFFFF",
-  backgroundMuted: "#F6F6F6",
+  // Canvas & Surfaces (Warm, clean organic ivory)
+  background: "#F8FAF6",
+  backgroundMuted: "#EDF3EB",
   surface: "#FFFFFF",
-  surfacePressed: "#F3F3F3",
-  surfaceAccent: "#EEEEEE",
+  surfacePressed: "#F0F5EE",
+  surfaceAccent: "#E4EDE1",
 
-  // Primary & Actions
-  primary: "#000000", // Solid Uber Black
+  // Primary & Actions (Lush Farmstead Green)
+  primary: "#15803D",
   primaryText: "#FFFFFF",
-  secondaryAction: "#F3F3F3",
-  secondaryActionText: "#000000",
+  secondaryAction: "#E8F5E9",
+  secondaryActionText: "#166534",
 
-  // Accent & Brand (Uber Blue)
-  accent: "#276EF1",
+  // Accent & Brand (Fresh Produce Mint / Leaf)
+  accent: "#16A34A",
   onAccent: "#FFFFFF",
-  accentSoft: "#EBF2FE",
+  accentSoft: "#DCFCE7",
 
-  // Status Colors (Uber Base)
-  statusUrgent: "#E11900", // Red
-  statusUrgentSoft: "#FFECE8",
-  statusWarning: "#E69500", // Amber
+  // Status Colors (Natural Food & Ripeness Spectrum)
+  statusUrgent: "#DC2626", // Ripe Strawberry / Tomato Ruby
+  statusUrgentSoft: "#FEE2E2",
+  statusWarning: "#D97706", // Apricot / Citrus Amber
   statusWarningSoft: "#FEF3C7",
-  statusSuccess: "#05A357", // Green
-  statusSuccessSoft: "#E8F8F0",
-  statusInfo: "#545454", // Muted Gray
-  statusInfoSoft: "#F3F3F3",
+  statusSuccess: "#16A34A", // Crisp Orchard Green
+  statusSuccessSoft: "#DCFCE7",
+  statusInfo: "#0284C7", // Fresh Water Sky
+  statusInfoSoft: "#E0F2FE",
 
   // Compatibility aliases
-  danger: "#E11900",
-  dangerSoft: "#FFECE8",
-  warning: "#E69500",
+  danger: "#DC2626",
+  dangerSoft: "#FEE2E2",
+  warning: "#D97706",
   warningSoft: "#FEF3C7",
 
-  // Typography
-  textPrimary: "#000000", // Uber Black
-  textSecondary: "#545454", // Muted Gray
-  textTertiary: "#757575", // Timestamps, captions
-  textMuted: "#A6A6A6", // Disabled
+  // Typography (Warm deep forest charcoal, not harsh pure black)
+  textPrimary: "#14281D",
+  textSecondary: "#475B50",
+  textTertiary: "#74877D",
+  textMuted: "#A0B0A7",
 
   // Borders
-  border: "#EEEEEE",
-  borderStrong: "#E2E2E2",
+  border: "#E1EAE0",
+  borderStrong: "#CAD7C8",
 
   // Overlays
-  overlay: "rgba(0, 0, 0, 0.6)",
-  scrim: "rgba(0, 0, 0, 0.75)",
-  shadow: "#000000",
+  overlay: "rgba(20, 40, 29, 0.6)",
+  scrim: "rgba(13, 23, 17, 0.75)",
+  shadow: "#14281D",
 } as const;
 
 export const dark = {
-  background: "#000000",
-  backgroundMuted: "#121212",
-  surface: "#1A1A1A",
-  surfacePressed: "#262626",
-  surfaceAccent: "#333333",
+  // Canvas & Surfaces (Lush deep botanical forest night — NOT pitch black void)
+  background: "#0D1711",
+  backgroundMuted: "#14241B",
+  surface: "#1B2D22",
+  surfacePressed: "#243C2E",
+  surfaceAccent: "#2D4B39",
 
-  primary: "#FFFFFF",
-  primaryText: "#000000",
-  secondaryAction: "#262626",
-  secondaryActionText: "#FFFFFF",
+  // Primary & Actions (Vibrant Spring Sprout)
+  primary: "#22C55E",
+  primaryText: "#0D1711",
+  secondaryAction: "#243C2E",
+  secondaryActionText: "#86EFAC",
 
-  accent: "#276EF1",
-  onAccent: "#FFFFFF",
-  accentSoft: "#102347",
+  // Accent & Brand
+  accent: "#22C55E",
+  onAccent: "#0D1711",
+  accentSoft: "#143821",
 
-  statusUrgent: "#FF453A",
-  statusUrgentSoft: "#3A1010",
-  statusWarning: "#FF9F0A",
-  statusWarningSoft: "#3A2805",
-  statusSuccess: "#30D158",
-  statusSuccessSoft: "#0C3015",
-  statusInfo: "#8E8E93",
-  statusInfoSoft: "#262626",
+  // Status Colors
+  statusUrgent: "#EF4444",
+  statusUrgentSoft: "#3D1010",
+  statusWarning: "#F59E0B",
+  statusWarningSoft: "#3D2605",
+  statusSuccess: "#22C55E",
+  statusSuccessSoft: "#143821",
+  statusInfo: "#38BDF8",
+  statusInfoSoft: "#133144",
 
-  danger: "#FF453A",
-  dangerSoft: "#3A1010",
-  warning: "#FF9F0A",
-  warningSoft: "#3A2805",
+  danger: "#EF4444",
+  dangerSoft: "#3D1010",
+  warning: "#F59E0B",
+  warningSoft: "#3D2605",
 
-  textPrimary: "#FFFFFF",
-  textSecondary: "#A6A6A6",
-  textTertiary: "#757575",
-  textMuted: "#545454",
+  // Typography
+  textPrimary: "#F2F7F4",
+  textSecondary: "#9BB0A3",
+  textTertiary: "#6E8578",
+  textMuted: "#4D6155",
 
-  border: "#262626",
-  borderStrong: "#383838",
+  // Borders
+  border: "#253B2D",
+  borderStrong: "#34503E",
 
-  overlay: "rgba(0, 0, 0, 0.75)",
-  scrim: "rgba(0, 0, 0, 0.85)",
+  // Overlays
+  overlay: "rgba(7, 13, 9, 0.75)",
+  scrim: "rgba(7, 13, 9, 0.85)",
   shadow: "#000000",
 } as const;
 

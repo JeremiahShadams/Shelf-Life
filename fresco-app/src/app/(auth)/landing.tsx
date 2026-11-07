@@ -45,8 +45,8 @@ export default function LandingScreen() {
       <View style={[styles.content, { paddingHorizontal: layout.screenPadding }]}>
         {/* Centered Brand Content */}
         <View style={styles.brandContainer}>
-          <Text style={styles.brandLogo}>fresco</Text>
-          <Text style={styles.tagline}>Know your fruit.</Text>
+          <Text style={[styles.brandLogo, { color: colors.textPrimary }]}>fresco</Text>
+          <Text style={[styles.tagline, { color: colors.textSecondary }]}>Know your fruit.</Text>
 
           {error && (
             <Text variant="caption" color="danger" style={styles.errorText}>
@@ -66,14 +66,14 @@ export default function LandingScreen() {
 
           {/* Sign In Link */}
           <View style={styles.signInRow}>
-            <Text variant="body" color="secondary" style={styles.accountText}>
+            <Text variant="body" style={[styles.accountText, { color: colors.textSecondary }]}>
               Already have an account?
             </Text>
             <Pressable
               onPress={() => router.push("/(auth)/login")}
               hitSlop={8}
             >
-              <Text style={styles.signInLink}>Sign in</Text>
+              <Text style={[styles.signInLink, { color: colors.primary }]}>Sign in</Text>
             </Pressable>
           </View>
         </View>
@@ -98,16 +98,14 @@ const styles = StyleSheet.create({
     marginTop: -40,
   },
   brandLogo: {
-    fontSize: 34,
+    fontSize: 36,
     fontWeight: "900",
     letterSpacing: -1,
     marginBottom: 6,
-    color: "#000000",
   },
   tagline: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#545454",
     marginBottom: 36,
   },
   errorText: {
@@ -126,12 +124,11 @@ const styles = StyleSheet.create({
   },
   accountText: {
     fontSize: 14,
-    color: "#545454",
   },
   signInLink: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#000000",
     textDecorationLine: "underline",
   },
 });
+

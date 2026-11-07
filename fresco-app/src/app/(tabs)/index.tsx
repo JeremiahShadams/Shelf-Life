@@ -1,12 +1,10 @@
 /**
  * FRESCO — Scan (Home Screen)
- * Matches SuperDesign draft (f07b204d-974f-4128-a3fc-113f0b3e6323):
- * - Header with lowercase 'fresco' branding + [Camera | Upload] mode pill
- * - 4:3 rounded viewfinder card with 4 white corner guide brackets
- * - Concentric shutter ring button overlayed inside viewfinder
- * - Pre-storage selector: "Where will you store it?" (Counter, Fridge, Freezer)
- * - Post-capture review state: [Retake] + [Scan This Fruit]
- * - 3-stage progressive ProcessingOverlay during AI classification
+ * High-performance, full-viewport produce scanner.
+ * - Tall, immersive camera viewfinder with rounded corners and framing brackets
+ * - Clean tactile bottom controls: Gallery Photo Picker | 78px Shutter | Flashlight
+ * - Real-time progressive 3-stage ProcessingOverlay with organic green pulsing ring
+ * - Direct photo upload with automatic Blob conversion for WinterCG fetch
  */
 
 import React, { useCallback, useRef, useState } from "react";
@@ -15,7 +13,6 @@ import {
   Image,
   Linking,
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
 } from "react-native";
@@ -27,13 +24,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../../theme";
 import { Button, ErrorState, Loading, ProcessingOverlay, Text } from "../../components/ui";
 import { isModelNotDeployed, scanImage, type ScanAsset } from "../../services/scan";
-import type { StorageMethod } from "../../types/api";
-
-const STORAGE_OPTIONS: { key: StorageMethod; label: string }[] = [
-  { key: "room_temp", label: "Counter" },
-  { key: "fridge", label: "Fridge" },
-  { key: "freezer", label: "Freezer" },
-];
 
 function fileName(uri: string, fallback: string): string {
   const tail = uri.split("/").pop();
@@ -54,11 +44,8 @@ export default function ScanScreen() {
   const [error, setError] = useState<string | null>(null);
   const [modelMissing, setModelMissing] = useState(false);
 
-  // Storage location preference before scanning
-  const [preStorage, setPreStorage] = useState<StorageMethod>("fridge");
-
-  // Captured photo preview before uploading
-  const [capturedAsset, setCapturedAsset] = useState<ScanAsset | null>(null);
+  // Review asset if photo captured
+  const [reviewAsset, setReviewAsset] = useState<ScanAsset | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -77,24 +64,17 @@ export default function ScanScreen() {
 
     try {
       const result = await scanImage(asset);
-      // Pass the user's preselected storage method into result
-      if (preStorage && result.estimated_shelf_life[preStorage] != null) {
-        result.best_storage = preStorage;
-      }
-
+      setReviewAsset(null);
       router.push({
         pathname: "/scan-result",
         params: { scan: JSON.stringify(result) },
       });
-      // Clear review state after navigating
-      setCapturedAsset(null);
     } catch (err) {
       if (isModelNotDeployed(err)) {
         setModelMissing(true);
       } else {
-        setError(
-          err instanceof Error ? err.message : "Couldn't scan that photo. Try again.",
-        );
+        const msg = err instanceof Error ? err.message : "Couldn't scan produce. Check server connection.";
+        setError(msg);
       }
     } finally {
       setBusy(false);
@@ -106,7 +86,7 @@ export default function ScanScreen() {
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
       if (!photo) {
-        setError("Couldn't capture that photo. Try again.");
+        setError("Couldn't capture photo. Please try again.");
         return;
       }
       const asset: ScanAsset = {
@@ -114,7 +94,8 @@ export default function ScanScreen() {
         name: fileName(photo.uri, "scan.jpg"),
         mimeType: "image/jpeg",
       };
-      setCapturedAsset(asset);
+      setReviewAsset(asset);
+      void upload(asset);
     } catch {
       setError("Couldn't capture that photo. Try again.");
     }
@@ -127,7 +108,7 @@ export default function ScanScreen() {
         mediaTypes: ["images"],
         quality: 0.8,
       });
-      if (result.canceled) return;
+      if (result.canceled || !result.assets[0]) return;
 
       const picked = result.assets[0];
       const asset: ScanAsset = {
@@ -135,26 +116,80 @@ export default function ScanScreen() {
         name: picked.fileName ?? fileName(picked.uri, "scan.jpg"),
         mimeType: picked.mimeType ?? "image/jpeg",
       };
-      setCapturedAsset(asset);
+      setReviewAsset(asset);
+      void upload(asset);
     } catch {
       setError("Couldn't open photo library.");
     }
   }
 
-  const handleRetake = () => {
-    setCapturedAsset(null);
-    setError(null);
-  };
-
-  const handleScanCaptured = () => {
-    if (capturedAsset) {
-      void upload(capturedAsset);
-    }
-  };
-
   // Permission still loading
   if (permission == null) {
     return <Loading fullScreen style={{ backgroundColor: colors.background }} />;
+  }
+
+  // Permission denied state
+  if (!permission.granted) {
+    return (
+      <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]}>
+        <View style={[styles.permissionContainer, { paddingHorizontal: layout.screenPadding }]}>
+          <View style={[styles.permissionIconCircle, { backgroundColor: colors.accentSoft }]}>
+            <Ionicons name="camera" size={40} color={colors.primary} />
+          </View>
+          <Text variant="largeTitle" align="center" style={styles.permissionTitle}>
+            Camera Access
+          </Text>
+          <Text variant="body" color="secondary" align="center" style={styles.permissionBody}>
+            Fresco uses your camera to identify fruit varieties and estimate truthful shelf life.
+          </Text>
+
+          <Button
+            label={permission.canAskAgain ? "Enable Camera" : "Open Settings"}
+            variant="primary"
+            block
+            onPress={() => {
+              if (permission.canAskAgain) void requestPermission();
+              else void Linking.openSettings();
+            }}
+            style={{ marginTop: spacing.xl }}
+          />
+
+          <Button
+            label="Upload photo instead"
+            variant="secondary"
+            block
+            onPress={() => void handlePick()}
+            style={{ marginTop: spacing.s }}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Model not deployed state
+  if (modelMissing) {
+    return (
+      <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]}>
+        <ErrorState
+          full
+          title="AI Scanner Offline"
+          message="The fruit classifier model artifact is currently being loaded. You can still add items manually and track expiration."
+          retryLabel="Add Item Manually"
+          onRetry={() => router.push("/add-item")}
+        />
+        <View style={{ paddingHorizontal: layout.screenPadding, paddingBottom: spacing.l }}>
+          <Button
+            label="Try Another Photo"
+            variant="ghost"
+            block
+            onPress={() => {
+              setModelMissing(false);
+              void handlePick();
+            }}
+          />
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -162,350 +197,181 @@ export default function ScanScreen() {
       edges={["top"]}
       style={[styles.screen, { backgroundColor: colors.background }]}
     >
-      {/* Header with fresco logo & [Camera | Upload] toggle */}
+      {/* Top Header */}
       <View style={[styles.header, { paddingHorizontal: layout.screenPadding }]}>
-        <Text style={styles.brandTitle}>fresco</Text>
-
-        <View
-          style={[
-            styles.headerModeToggle,
-            { backgroundColor: colors.backgroundMuted },
-          ]}
-        >
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: capturedAsset == null }}
-            onPress={handleRetake}
-            style={[
-              styles.modeSegment,
-              capturedAsset == null && [
-                styles.modeSegmentActive,
-                { backgroundColor: colors.primary },
-              ],
-            ]}
-          >
-            <Text
-              style={[
-                styles.modeSegmentText,
-                {
-                  color: capturedAsset == null ? colors.primaryText : colors.textSecondary,
-                  fontWeight: capturedAsset == null ? "700" : "500",
-                },
-              ]}
-            >
-              Camera
-            </Text>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: capturedAsset != null }}
-            onPress={() => void handlePick()}
-            style={[
-              styles.modeSegment,
-              capturedAsset != null && [
-                styles.modeSegmentActive,
-                { backgroundColor: colors.primary },
-              ],
-            ]}
-          >
-            <Text
-              style={[
-                styles.modeSegmentText,
-                {
-                  color: capturedAsset != null ? colors.primaryText : colors.textSecondary,
-                  fontWeight: capturedAsset != null ? "700" : "500",
-                },
-              ]}
-            >
-              Upload
-            </Text>
-          </Pressable>
+        <View>
+          <Text variant="largeTitle" style={[styles.headerTitle, { color: colors.textPrimary }]}>
+            Scan
+          </Text>
+          <Text variant="caption" style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+            Point at one piece of produce.
+          </Text>
         </View>
-      </View>
 
-      <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingHorizontal: layout.screenPadding },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Permission Denied Warning Card */}
-        {!permission.granted && (
-          <View
-            style={[
-              styles.inlineErrorBox,
-              {
-                backgroundColor: colors.dangerSoft,
-                borderColor: colors.statusUrgent,
-                borderRadius: radius.card,
-              },
-            ]}
-          >
-            <Ionicons
-              name="alert-circle"
-              size={20}
-              color={colors.statusUrgent}
-              style={styles.errorIcon}
-            />
-            <View style={styles.errorTextCol}>
-              <Text
-                style={[styles.errorHeading, { color: colors.statusUrgent }]}
-              >
-                Camera permission denied
-              </Text>
-              <Text
-                variant="caption"
-                style={[styles.errorSub, { color: colors.textSecondary }]}
-              >
-                Enable camera access in settings or upload a photo instead.
-              </Text>
-              <Pressable
-                onPress={() => {
-                  if (permission.canAskAgain) void requestPermission();
-                  else void Linking.openSettings();
-                }}
-                style={styles.permissionActionBtn}
-              >
-                <Text style={styles.permissionActionText}>
-                  {permission.canAskAgain ? "Allow Camera" : "Open Settings"}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-        {/* Scan Error Message */}
-        {error && (
-          <View
-            style={[
-              styles.inlineErrorBox,
-              {
-                backgroundColor: colors.dangerSoft,
-                borderColor: colors.statusUrgent,
-                borderRadius: radius.card,
-              },
-            ]}
-          >
-            <Ionicons
-              name="alert-circle-outline"
-              size={18}
-              color={colors.statusUrgent}
-              style={styles.errorIcon}
-            />
-            <Text
-              variant="caption"
-              style={[styles.errorHeading, { color: colors.statusUrgent, flex: 1 }]}
-            >
-              {error}
-            </Text>
-            <Pressable onPress={() => setError(null)} hitSlop={8}>
-              <Ionicons name="close" size={16} color={colors.statusUrgent} />
-            </Pressable>
-          </View>
-        )}
-
-        {/* Model Missing Banner */}
-        {modelMissing && (
-          <View
-            style={[
-              styles.inlineErrorBox,
-              {
-                backgroundColor: colors.statusWarningSoft,
-                borderColor: colors.statusWarning,
-                borderRadius: radius.card,
-              },
-            ]}
-          >
-            <Ionicons
-              name="information-circle-outline"
-              size={20}
-              color={colors.statusWarning}
-              style={styles.errorIcon}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.errorHeading, { color: colors.textPrimary }]}>
-                Scanning model warming up
-              </Text>
-              <Text variant="caption" color="secondary" style={{ marginTop: 2 }}>
-                You can still add produce manually by name in the meantime.
-              </Text>
-              <Pressable
-                onPress={() => router.push("/add-item")}
-                style={{ marginTop: 6 }}
-              >
-                <Text style={[styles.permissionActionText, { color: colors.textPrimary }]}>
-                  Add item by name →
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-        {/* 4:3 Viewfinder Area Card with Reticle Brackets */}
-        <View
-          style={[
-            styles.viewfinderCard,
+        {/* Quick Add Fruit Manual Shortcut */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add fruit by name"
+          onPress={() => router.push("/add-item")}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.manualAddButton,
             {
-              backgroundColor: colors.primary,
-              borderRadius: radius.modal,
-              ...elevation.card,
+              backgroundColor: colors.surfacePressed,
+              borderColor: colors.border,
+              opacity: pressed ? 0.7 : 1,
             },
           ]}
         >
-          {/* Active Camera Stream or Captured Photo */}
-          {capturedAsset ? (
-            <Image
-              source={{ uri: capturedAsset.uri }}
-              style={StyleSheet.absoluteFill}
-              resizeMode="cover"
-            />
-          ) : (
-            focused &&
-            permission.granted && (
-              <CameraView
-                ref={cameraRef}
-                style={StyleSheet.absoluteFill}
-                facing="back"
-                enableTorch={torch}
-                onCameraReady={() => setCameraReady(true)}
-                onMountError={() => setError("Camera failed to start.")}
-              />
-            )
-          )}
+          <Ionicons name="add" size={20} color={colors.primary} />
+          <Text variant="micro" style={[styles.manualAddText, { color: colors.primary }]}>
+            Manual
+          </Text>
+        </Pressable>
+      </View>
 
-          {/* Camera Starting Spinner */}
-          {!capturedAsset && !cameraReady && permission.granted && (
-            <View style={[StyleSheet.absoluteFill, styles.cameraLoadingOverlay]}>
-              <ActivityIndicator size="large" color="#FFFFFF" />
-              <Text style={styles.cameraLoadingText}>Starting camera...</Text>
-            </View>
-          )}
-
-          {/* 4 Corner Guide Reticle Brackets */}
-          <View pointerEvents="none" style={styles.reticleContainer}>
-            <View style={styles.reticleTopLeft} />
-            <View style={styles.reticleTopRight} />
-            <View style={styles.reticleBottomLeft} />
-            <View style={styles.reticleBottomRight} />
-          </View>
-
-          {/* Concentric Shutter Button Overlay (Inside Viewfinder) */}
-          {!capturedAsset && permission.granted && (
-            <View style={styles.shutterOverlay}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Capture fruit photo"
-                disabled={!cameraReady || busy}
-                onPress={handleCapture}
-                style={({ pressed }) => [
-                  styles.shutterOuterRing,
-                  {
-                    opacity: !cameraReady || busy ? 0.4 : pressed ? 0.8 : 1,
-                    transform: [{ scale: pressed ? 0.94 : 1 }],
-                  },
-                ]}
-              >
-                <View style={styles.shutterInnerCircle} />
-              </Pressable>
-            </View>
-          )}
-
-          {/* Flashlight Torch Toggle (Bottom-Right of viewfinder) */}
-          {!capturedAsset && permission.granted && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={torch ? "Turn off flash" : "Turn on flash"}
-              onPress={() => setTorch((v) => !v)}
-              style={({ pressed }) => [
-                styles.torchButton,
-                { opacity: pressed ? 0.7 : 1 },
-              ]}
-            >
-              <Ionicons
-                name={torch ? "flash" : "flash-outline"}
-                size={20}
-                color="#FFFFFF"
-              />
-            </Pressable>
-          )}
+      {/* Error Banner if error occurred */}
+      {error != null && (
+        <View
+          style={[
+            styles.errorBanner,
+            {
+              backgroundColor: colors.dangerSoft,
+              borderColor: colors.danger,
+              marginHorizontal: layout.screenPadding,
+            },
+          ]}
+        >
+          <Ionicons name="alert-circle" size={18} color={colors.danger} />
+          <Text variant="caption" style={[styles.errorBannerText, { color: colors.danger }]}>
+            {error}
+          </Text>
+          <Pressable onPress={() => setError(null)} hitSlop={8}>
+            <Ionicons name="close" size={16} color={colors.danger} />
+          </Pressable>
         </View>
+      )}
 
-        {/* Post-Capture Review Actions: [Retake] + [Scan This Fruit] */}
-        {capturedAsset && (
-          <View style={styles.reviewActionsRow}>
-            <Button
-              label="Retake"
-              variant="secondary"
-              onPress={handleRetake}
-              style={styles.retakeBtn}
+      {/* Tall Immersive Viewfinder Card */}
+      <View
+        style={[
+          styles.viewfinderCard,
+          {
+            marginHorizontal: layout.screenPadding,
+            borderRadius: radius.sheet ?? 28,
+            backgroundColor: colors.surfacePressed,
+            borderColor: colors.border,
+          },
+          elevation.card,
+        ]}
+      >
+        {/* Camera Live Preview or Captured Snapshot Review */}
+        {reviewAsset != null ? (
+          <Image
+            source={{ uri: reviewAsset.uri }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+        ) : (
+          focused && (
+            <CameraView
+              ref={cameraRef}
+              style={StyleSheet.absoluteFill}
+              facing="back"
+              enableTorch={torch}
+              onCameraReady={() => setCameraReady(true)}
+              onMountError={() => setError("The camera couldn't start on this device.")}
             />
-            <Button
-              label="Scan This Fruit"
-              variant="primary"
-              loading={busy}
-              onPress={handleScanCaptured}
-              style={styles.scanCapturedBtn}
-            />
-          </View>
+          )
         )}
 
-        {/* Storage Pre-Selector Section */}
-        <View style={styles.storageSelectorSection}>
-          <Text style={styles.storageLabel}>WHERE WILL YOU STORE IT?</Text>
+        {/* Framing Guide Brackets (Apple / Lens style) */}
+        <View style={styles.framingOverlay} pointerEvents="none">
+          <View style={[styles.bracket, styles.bracketTopLeft]} />
+          <View style={[styles.bracket, styles.bracketTopRight]} />
+          <View style={[styles.bracket, styles.bracketBottomLeft]} />
+          <View style={[styles.bracket, styles.bracketBottomRight]} />
+        </View>
+      </View>
+
+      {/* Bottom Controls Bar (Placed below viewfinder) */}
+      <View style={[styles.controlsBar, { paddingHorizontal: layout.screenPadding }]}>
+        {/* Gallery / Library Picker */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Choose from gallery"
+          onPress={() => void handlePick()}
+          disabled={busy}
+          style={({ pressed }) => [
+            styles.sideCircleButton,
+            {
+              backgroundColor: colors.surfacePressed,
+              borderColor: colors.border,
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}
+        >
+          <Ionicons name="images-outline" size={24} color={colors.textPrimary} />
+        </Pressable>
+
+        {/* Large 78px Primary Shutter Button */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Take photo of produce"
+          accessibilityState={{ disabled: !cameraReady || busy }}
+          onPress={() => void handleCapture()}
+          disabled={!cameraReady || busy}
+          style={({ pressed }) => [
+            styles.shutterOuter,
+            {
+              borderColor: colors.primary,
+              opacity: !cameraReady || busy ? 0.5 : pressed ? 0.85 : 1,
+              transform: [{ scale: pressed ? 0.94 : 1 }],
+            },
+          ]}
+        >
           <View
             style={[
-              styles.storageSegmentContainer,
-              { backgroundColor: colors.backgroundMuted },
+              styles.shutterInner,
+              { backgroundColor: colors.primary },
             ]}
-          >
-            {STORAGE_OPTIONS.map((opt) => {
-              const isSelected = preStorage === opt.key;
-              return (
-                <Pressable
-                  key={opt.key}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: isSelected }}
-                  onPress={() => setPreStorage(opt.key)}
-                  style={[
-                    styles.storageSegment,
-                    isSelected && [
-                      styles.storageSegmentActive,
-                      {
-                        backgroundColor: colors.surface,
-                        ...elevation.card,
-                      },
-                    ],
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.storageSegmentText,
-                      {
-                        color: isSelected ? colors.textPrimary : colors.textSecondary,
-                        fontWeight: isSelected ? "700" : "500",
-                      },
-                    ]}
-                  >
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          />
+        </Pressable>
 
-          <Text style={styles.storageHint}>
-            This helps us estimate shelf life more accurately.
-          </Text>
-        </View>
-      </ScrollView>
+        {/* Flashlight Torch Toggle */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={torch ? "Turn off torch" : "Turn on torch"}
+          onPress={() => setTorch((v) => !v)}
+          disabled={busy}
+          style={({ pressed }) => [
+            styles.sideCircleButton,
+            {
+              backgroundColor: torch ? colors.accentSoft : colors.surfacePressed,
+              borderColor: torch ? colors.primary : colors.border,
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}
+        >
+          <Ionicons
+            name={torch ? "flashlight" : "flashlight-outline"}
+            size={24}
+            color={torch ? colors.primary : colors.textPrimary}
+          />
+        </Pressable>
+      </View>
 
-      {/* 3-Stage Progressive Processing Overlay */}
-      <ProcessingOverlay
-        visible={busy}
-        onCancel={() => setBusy(false)}
-      />
+      {/* Bottom Guidance Tagline */}
+      <Text
+        variant="micro"
+        align="center"
+        style={[styles.bottomHint, { color: colors.textTertiary }]}
+      >
+        Hold steady · one item at a time
+      </Text>
+
+      {/* Progressive 3-Stage AI Processing Overlay */}
+      <ProcessingOverlay visible={busy} />
     </SafeAreaView>
   );
 }
@@ -515,208 +381,141 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    height: 56,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingTop: 10,
+    paddingBottom: 12,
   },
-  brandTitle: {
-    fontSize: 22,
-    fontWeight: "900",
-    letterSpacing: -0.6,
-  },
-  headerModeToggle: {
-    flexDirection: "row",
-    borderRadius: 12,
-    padding: 3,
-  },
-  modeSegment: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 9,
-  },
-  modeSegmentActive: {},
-  modeSegmentText: {
-    fontSize: 13,
-  },
-  scrollContent: {
-    paddingTop: 12,
-    paddingBottom: 40,
-  },
-  inlineErrorBox: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    borderWidth: 1,
-    padding: 12,
-    marginBottom: 16,
-    gap: 10,
-  },
-  errorIcon: {
-    marginTop: 2,
-  },
-  errorTextCol: {
-    flex: 1,
-  },
-  errorHeading: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  errorSub: {
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  permissionActionBtn: {
-    marginTop: 6,
-  },
-  permissionActionText: {
-    fontSize: 12,
-    fontWeight: "700",
-    textDecorationLine: "underline",
-  },
-  viewfinderCard: {
-    width: "100%",
-    aspectRatio: 4 / 3,
-    overflow: "hidden",
-    position: "relative",
-    marginBottom: 20,
-  },
-  cameraLoadingOverlay: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.7)",
-  },
-  cameraLoadingText: {
-    color: "rgba(255,255,255,0.75)",
-    fontSize: 13,
-    fontWeight: "600",
-    marginTop: 10,
-  },
-  reticleContainer: {
-    ...StyleSheet.absoluteFill,
-    margin: 16,
-  },
-  reticleTopLeft: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: 28,
-    height: 28,
-    borderTopWidth: 2.5,
-    borderLeftWidth: 2.5,
-    borderColor: "rgba(255, 255, 255, 0.5)",
-    borderTopLeftRadius: 6,
-  },
-  reticleTopRight: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    width: 28,
-    height: 28,
-    borderTopWidth: 2.5,
-    borderRightWidth: 2.5,
-    borderColor: "rgba(255, 255, 255, 0.5)",
-    borderTopRightRadius: 6,
-  },
-  reticleBottomLeft: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    width: 28,
-    height: 28,
-    borderBottomWidth: 2.5,
-    borderLeftWidth: 2.5,
-    borderColor: "rgba(255, 255, 255, 0.5)",
-    borderBottomLeftRadius: 6,
-  },
-  reticleBottomRight: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 28,
-    height: 28,
-    borderBottomWidth: 2.5,
-    borderRightWidth: 2.5,
-    borderColor: "rgba(255, 255, 255, 0.5)",
-    borderBottomRightRadius: 6,
-  },
-  shutterOverlay: {
-    position: "absolute",
-    bottom: 16,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  shutterOuterRing: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 3.5,
-    borderColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  shutterInnerCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#FFFFFF",
-  },
-  torchButton: {
-    position: "absolute",
-    bottom: 22,
-    right: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0, 0, 0, 0.45)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  reviewActionsRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 20,
-  },
-  retakeBtn: {
-    flex: 1,
-    height: 56,
-  },
-  scanCapturedBtn: {
-    flex: 2,
-    height: 56,
-  },
-  storageSelectorSection: {
-    marginTop: 4,
-  },
-  storageLabel: {
-    fontSize: 11,
+  headerTitle: {
     fontWeight: "800",
-    color: "#545454",
-    letterSpacing: 1,
-    marginBottom: 8,
+    letterSpacing: -0.5,
   },
-  storageSegmentContainer: {
-    flexDirection: "row",
-    padding: 4,
-    borderRadius: 12,
-  },
-  storageSegment: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
-  },
-  storageSegmentActive: {},
-  storageSegmentText: {
+  headerSubtitle: {
+    marginTop: 2,
     fontSize: 14,
   },
-  storageHint: {
-    fontSize: 12,
-    color: "#545454",
+  manualAddButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 4,
+  },
+  manualAddText: {
+    fontWeight: "700",
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+    gap: 8,
+  },
+  errorBannerText: {
+    flex: 1,
     fontWeight: "500",
-    textAlign: "center",
-    marginTop: 10,
+  },
+  viewfinderCard: {
+    flex: 1,
+    overflow: "hidden",
+    borderWidth: 1,
+    position: "relative",
+  },
+  framingOverlay: {
+    ...StyleSheet.absoluteFill,
+    margin: 36,
+  },
+  bracket: {
+    position: "absolute",
+    width: 32,
+    height: 32,
+    borderColor: "#FFFFFF",
+  },
+  bracketTopLeft: {
+    top: 0,
+    left: 0,
+    borderTopWidth: 3.5,
+    borderLeftWidth: 3.5,
+    borderTopLeftRadius: 10,
+  },
+  bracketTopRight: {
+    top: 0,
+    right: 0,
+    borderTopWidth: 3.5,
+    borderRightWidth: 3.5,
+    borderTopRightRadius: 10,
+  },
+  bracketBottomLeft: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: 3.5,
+    borderLeftWidth: 3.5,
+    borderBottomLeftRadius: 10,
+  },
+  bracketBottomRight: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: 3.5,
+    borderRightWidth: 3.5,
+    borderBottomRightRadius: 10,
+  },
+  controlsBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 18,
+  },
+  sideCircleButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  shutterOuter: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    borderWidth: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+  },
+  shutterInner: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+  },
+  bottomHint: {
+    marginBottom: 12,
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  permissionContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  permissionIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  permissionTitle: {
+    marginBottom: 8,
+  },
+  permissionBody: {
+    maxWidth: 280,
+    lineHeight: 20,
   },
 });

@@ -123,8 +123,8 @@ export default function RegisterScreen() {
           <View style={styles.formContainer}>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.brandTitle}>fresco</Text>
-              <Text style={styles.subtitle}>Create your account</Text>
+              <Text style={[styles.brandTitle, { color: colors.textPrimary }]}>fresco</Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Create your account</Text>
             </View>
 
             {/* Error Alert Banner */}
@@ -353,7 +353,7 @@ export default function RegisterScreen() {
                 onPress={() => router.push("/(auth)/login")}
                 hitSlop={8}
               >
-                <Text style={styles.signInLink}>Sign in</Text>
+                <Text style={[styles.signInLink, { color: colors.primary }]}>Sign in</Text>
               </Pressable>
             </View>
           </View>
@@ -388,13 +388,11 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "900",
     letterSpacing: -0.8,
-    color: "#000000",
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#545454",
   },
   errorBanner: {
     flexDirection: "row",
@@ -473,7 +471,6 @@ const styles = StyleSheet.create({
   signInLink: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#000000",
     textDecorationLine: "underline",
   },
 });
