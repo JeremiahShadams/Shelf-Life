@@ -5,8 +5,12 @@
  * not fire a 401, so they resolve to an empty list locally.
  */
 
-import { useQuery } from "@tanstack/react-query";
-import { listNotifications } from "../services/notifications";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  listNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "../services/notifications";
 import { useAuth } from "../stores/auth";
 import type { NotificationListResponse } from "../types/api";
 
@@ -24,5 +28,35 @@ export function useNotifications() {
         ? Promise.resolve(EMPTY_NOTIFICATIONS)
         : listNotifications(token as string),
     enabled: token != null,
+  });
+}
+
+export function useMarkNotificationRead() {
+  const queryClient = useQueryClient();
+  const token = useAuth((s) => (s.status === "authed" ? s.token : null));
+
+  return useMutation({
+    mutationFn: (id: number) => {
+      if (!token || token === "guest_demo_token") return Promise.resolve(null);
+      return markNotificationRead(token, id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [NOTIFICATIONS_KEY] });
+    },
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const queryClient = useQueryClient();
+  const token = useAuth((s) => (s.status === "authed" ? s.token : null));
+
+  return useMutation({
+    mutationFn: () => {
+      if (!token || token === "guest_demo_token") return Promise.resolve(null);
+      return markAllNotificationsRead(token);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [NOTIFICATIONS_KEY] });
+    },
   });
 }

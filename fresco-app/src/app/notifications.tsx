@@ -19,7 +19,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../theme";
 import { EmptyState, ErrorState, Loading, Text } from "../components/ui";
-import { useNotifications } from "../hooks/useNotifications";
+import {
+  useNotifications,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+} from "../hooks/useNotifications";
 import { parseServerDate } from "../utils/datetime";
 import type { NotificationItem } from "../types/api";
 
@@ -53,6 +57,9 @@ export default function NotificationsScreen() {
 
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const notificationsQuery = useNotifications();
+  const markRead = useMarkNotificationRead();
+  const markAllRead = useMarkAllNotificationsRead();
+
   const items = notificationsQuery.data?.items ?? [];
 
   // Consider an item unread if not sent or marked
@@ -62,6 +69,18 @@ export default function NotificationsScreen() {
   );
 
   const displayedItems = activeTab === "unread" ? unreadItems : items;
+
+  const handleCardPress = (item: NotificationItem) => {
+    if (!item.sent) {
+      markRead.mutate(item.id);
+    }
+    if (item.inventory_id) {
+      router.push({
+        pathname: "/inventory/[id]",
+        params: { id: String(item.inventory_id) },
+      });
+    }
+  };
 
   return (
     <SafeAreaView
@@ -87,7 +106,19 @@ export default function NotificationsScreen() {
             Notifications
           </Text>
 
-          <View style={styles.iconButton} />
+          {unreadItems.length > 0 ? (
+            <Pressable
+              onPress={() => markAllRead.mutate()}
+              hitSlop={8}
+              style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, paddingVertical: 4 }]}
+            >
+              <Text variant="caption" style={{ color: colors.primary, fontWeight: "600" }}>
+                Read all
+              </Text>
+            </Pressable>
+          ) : (
+            <View style={styles.iconButton} />
+          )}
         </View>
 
         {/* Filter Tabs (All / Unread) */}
@@ -209,7 +240,12 @@ export default function NotificationsScreen() {
             styles.listContent,
             { paddingHorizontal: layout.screenPadding, paddingTop: spacing.s },
           ]}
-          renderItem={({ item }) => <NotificationCard item={item} />}
+          renderItem={({ item }) => (
+            <NotificationCard
+              item={item}
+              onPress={() => handleCardPress(item)}
+            />
+          )}
           ListHeaderComponent={
             <View
               style={[
@@ -238,7 +274,13 @@ export default function NotificationsScreen() {
   );
 }
 
-function NotificationCard({ item }: { item: NotificationItem }) {
+function NotificationCard({
+  item,
+  onPress,
+}: {
+  item: NotificationItem;
+  onPress?: () => void;
+}) {
   const theme = useTheme();
   const { colors, borders, radius } = theme;
 
@@ -286,13 +328,15 @@ function NotificationCard({ item }: { item: NotificationItem }) {
     colonIdx > 0 ? item.message.substring(colonIdx + 1).trim() : item.message;
 
   return (
-    <View
-      style={[
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
         styles.cardContainer,
         {
           backgroundColor: cardBg,
           borderColor: colors.border,
           borderRadius: radius.card,
+          opacity: pressed ? 0.8 : 1,
         },
       ]}
     >
@@ -363,7 +407,7 @@ function NotificationCard({ item }: { item: NotificationItem }) {
           </Text>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

@@ -9,9 +9,15 @@ import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
 import { ApiError } from "../services/api";
-import { getMe, login as apiLogin, register as apiRegister } from "../services/auth";
+import {
+  getMe,
+  login as apiLogin,
+  register as apiRegister,
+  updateProfile as apiUpdateProfile,
+  deleteAccount as apiDeleteAccount,
+} from "../services/auth";
 import { clearGuestInventory } from "../services/inventory";
-import type { User } from "../types/api";
+import type { User, UserProfileUpdate } from "../types/api";
 
 export type AuthStatus = "idle" | "anon" | "authed";
 
@@ -83,6 +89,8 @@ export type AuthState = {
   register: (username: string, email: string, password: string) => Promise<void>;
   loginAsGuest: () => Promise<void>;
   logout: () => Promise<void>;
+  updateUserPreferences: (prefs: UserProfileUpdate) => Promise<void>;
+  deleteUserAccount: () => Promise<void>;
 };
 
 async function persist(token: string, user: User): Promise<void> {
@@ -95,7 +103,7 @@ async function clearPersisted(): Promise<void> {
   await storageDelete(USER_KEY);
 }
 
-export const useAuth = create<AuthState>((set) => ({
+export const useAuth = create<AuthState>((set, get) => ({
   status: "idle",
   token: null,
   user: null,
@@ -170,6 +178,38 @@ export const useAuth = create<AuthState>((set) => ({
   },
 
   logout: async () => {
+    clearGuestInventory();
+    await clearPersisted();
+    set({ status: "anon", token: null, user: null });
+  },
+
+  updateUserPreferences: async (prefs) => {
+    const state = get();
+    if (!state.user) return;
+    const updatedUser: User = { ...state.user, ...prefs };
+    set({ user: updatedUser });
+    await storageSet(USER_KEY, JSON.stringify(updatedUser));
+
+    if (state.token && state.token !== "guest_demo_token") {
+      try {
+        const synced = await apiUpdateProfile(state.token, prefs);
+        set({ user: synced });
+        await storageSet(USER_KEY, JSON.stringify(synced));
+      } catch {
+        // Optimistic local update is retained even if offline
+      }
+    }
+  },
+
+  deleteUserAccount: async () => {
+    const state = get();
+    if (state.token && state.token !== "guest_demo_token") {
+      try {
+        await apiDeleteAccount(state.token);
+      } catch {
+        // Proceed with local cleanup
+      }
+    }
     clearGuestInventory();
     await clearPersisted();
     set({ status: "anon", token: null, user: null });

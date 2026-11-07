@@ -43,13 +43,21 @@ export default function AccountScreen() {
 
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
+  const updateUserPreferences = useAuth((s) => s.updateUserPreferences);
+  const deleteUserAccount = useAuth((s) => s.deleteUserAccount);
   const health = useHealth();
   const notifications = useNotifications();
 
   // Preferences State
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [weightUnit, setWeightUnit] = useState<WeightUnit>("Kg");
-  const [defaultStorage, setDefaultStorage] = useState<StorageMethod>("fridge");
+  const [notificationsEnabled, setNotificationsEnabled] = useState(
+    user?.notifications_enabled ?? true,
+  );
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(
+    (user?.weight_unit === "lbs" ? "Lbs" : "Kg") as WeightUnit,
+  );
+  const [defaultStorage, setDefaultStorage] = useState<StorageMethod>(
+    (user?.default_storage as StorageMethod) ?? "fridge",
+  );
 
   // Dialog & Toast State
   const [signOutModalVisible, setSignOutModalVisible] = useState(false);
@@ -65,12 +73,14 @@ export default function AccountScreen() {
 
   const handleToggleNotifications = (value: boolean) => {
     setNotificationsEnabled(value);
+    void updateUserPreferences({ notifications_enabled: value });
     setToastMessage(value ? "Notifications enabled" : "Notifications disabled");
   };
 
   const handleToggleUnits = () => {
     const nextUnit: WeightUnit = weightUnit === "Kg" ? "Lbs" : "Kg";
     setWeightUnit(nextUnit);
+    void updateUserPreferences({ weight_unit: nextUnit.toLowerCase() });
     setToastMessage(`Units updated to ${nextUnit}`);
   };
 
@@ -82,6 +92,7 @@ export default function AccountScreen() {
           ? "freezer"
           : "fridge";
     setDefaultStorage(nextStorage);
+    void updateUserPreferences({ default_storage: nextStorage });
     const label =
       nextStorage === "fridge"
         ? "Fridge"
@@ -136,7 +147,7 @@ export default function AccountScreen() {
           text: "Delete My Account",
           style: "destructive",
           onPress: () => {
-            void logout();
+            void deleteUserAccount();
           },
         },
       ],

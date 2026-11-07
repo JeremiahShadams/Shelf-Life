@@ -127,6 +127,18 @@ export interface User {
   id: number;
   username: string;
   email: string;
+  push_token?: string | null;
+  notifications_enabled?: boolean;
+  weight_unit?: string;
+  default_storage?: string;
+  created_at?: string | null;
+}
+
+export interface UserProfileUpdate {
+  push_token?: string | null;
+  notifications_enabled?: boolean;
+  weight_unit?: string;
+  default_storage?: string;
 }
 
 export interface TokenResponse {
