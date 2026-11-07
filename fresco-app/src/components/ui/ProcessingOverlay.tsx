@@ -112,7 +112,7 @@ export function ProcessingOverlay({ visible, onCancel }: ProcessingOverlayProps)
 
   return (
     <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.overlayContainer}>
+      <View style={[styles.overlayContainer, { backgroundColor: colors.scrim }]}>
         <View style={styles.contentCenter}>
           {/* Spinner with Pulsing Ambient Ring */}
           <View style={styles.spinnerContainer}>
@@ -120,6 +120,7 @@ export function ProcessingOverlay({ visible, onCancel }: ProcessingOverlayProps)
               style={[
                 styles.pulseRing,
                 {
+                  borderColor: colors.accent,
                   transform: [{ scale: pulseAnim }],
                   opacity: pulseOpacity,
                 },

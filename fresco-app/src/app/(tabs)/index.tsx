@@ -314,7 +314,7 @@ export default function ScanScreen() {
           <Ionicons name="images-outline" size={24} color={colors.textPrimary} />
         </Pressable>
 
-        {/* Large 78px Primary Shutter Button */}
+        {/* Large 78px Primary Shutter Button - Deep Forest ring with Carrot Orange capture core */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Take photo of produce"
@@ -333,7 +333,7 @@ export default function ScanScreen() {
           <View
             style={[
               styles.shutterInner,
-              { backgroundColor: colors.primary },
+              { backgroundColor: colors.accent },
             ]}
           />
         </Pressable>
@@ -348,7 +348,7 @@ export default function ScanScreen() {
             styles.sideCircleButton,
             {
               backgroundColor: torch ? colors.accentSoft : colors.surfacePressed,
-              borderColor: torch ? colors.primary : colors.border,
+              borderColor: torch ? colors.accent : colors.border,
               opacity: pressed ? 0.7 : 1,
             },
           ]}
@@ -356,7 +356,7 @@ export default function ScanScreen() {
           <Ionicons
             name={torch ? "flashlight" : "flashlight-outline"}
             size={24}
-            color={torch ? colors.primary : colors.textPrimary}
+            color={torch ? colors.accent : colors.textPrimary}
           />
         </Pressable>
       </View>

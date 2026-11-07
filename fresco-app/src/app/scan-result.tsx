@@ -549,7 +549,7 @@ export default function ScanResultScreen() {
 
           <Button
             label={added ? "Added to Inventory" : "Add to Inventory"}
-            variant="primary"
+            variant="accent"
             loading={addToFridge.isPending}
             disabled={added}
             onPress={handleAdd}

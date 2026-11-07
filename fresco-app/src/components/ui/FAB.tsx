@@ -29,7 +29,7 @@ export function FAB({ onPress, accessibilityLabel = "Add item to inventory", sty
           width: layout.fabSize,
           height: layout.fabSize,
           borderRadius: layout.fabSize / 2,
-          backgroundColor: colors.primary,
+          backgroundColor: colors.accent,
           transform: [{ scale: pressed ? 0.94 : 1 }],
         },
         styles.shadow,
@@ -37,7 +37,7 @@ export function FAB({ onPress, accessibilityLabel = "Add item to inventory", sty
         style,
       ]}
     >
-      <Ionicons name="add" size={28} color={colors.primaryText} />
+      <Ionicons name="add" size={28} color={colors.onAccent} />
     </Pressable>
   );
 }

@@ -318,6 +318,7 @@ export default function AddItemScreen() {
 
           <Button
             label="Add to inventory"
+            variant="accent"
             block
             loading={addMutation.isPending}
             onPress={save}

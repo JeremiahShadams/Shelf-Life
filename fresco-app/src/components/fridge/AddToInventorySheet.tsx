@@ -203,10 +203,10 @@ export function AddToInventorySheet({
                 </View>
               </View>
 
-              {/* Save Button */}
+              {/* Save Button - Carrot Orange action trigger */}
               <Button
                 label="Save to inventory"
-                variant="primary"
+                variant="accent"
                 loading={isSaving}
                 block
                 onPress={handleSave}

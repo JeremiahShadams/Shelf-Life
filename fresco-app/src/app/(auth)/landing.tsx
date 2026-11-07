@@ -54,10 +54,10 @@ export default function LandingScreen() {
             </Text>
           )}
 
-          {/* Primary CTA */}
+          {/* Primary CTA - Carrot Orange appetite action trigger */}
           <Button
             label="Scan Your First Fruit"
-            variant="primary"
+            variant="accent"
             block
             loading={loading}
             onPress={handleStartScanning}
