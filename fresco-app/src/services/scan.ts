@@ -29,13 +29,21 @@ export async function scanImage(asset: ScanAsset): Promise<ScanResult> {
 
   const formData = new FormData();
 
-  // React Native's FormData accepts the {uri, name, type} file descriptor.
-  // The DOM typings don't model it, hence the cast.
-  formData.append("image", {
-    uri: asset.uri,
-    name: asset.name,
-    type: asset.mimeType ?? "image/jpeg",
-  } as unknown as Blob);
+  // Modern React Native 0.88 / Expo SDK 58 uses WinterCG-compliant fetch.
+  // Passing legacy { uri, name, type } objects throws "Unsupported FormDataPart implementation".
+  // Fetching the local file URI to a standard Blob solves this across Android, iOS, and Web.
+  try {
+    const fileResponse = await fetch(asset.uri);
+    const blob = await fileResponse.blob();
+    formData.append("image", blob, asset.name || "produce.jpg");
+  } catch {
+    // Fallback for environments where URI fetching to blob isn't needed
+    formData.append("image", {
+      uri: asset.uri,
+      name: asset.name || "produce.jpg",
+      type: asset.mimeType ?? "image/jpeg",
+    } as unknown as Blob);
+  }
 
   return api.upload<ScanResult>("/api/scan/", formData, authToken);
 }
