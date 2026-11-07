@@ -51,6 +51,7 @@ uvicorn==0.42.0
 watchfiles==1.1.1
 websockets==16.0
 asyncpg
+boto3==1.37.1
 absl-py==2.4.0
 h5py==3.16.0
 jax==0.10.1

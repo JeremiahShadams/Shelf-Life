@@ -211,6 +211,13 @@ async def root():
     summary="Health Check",
     tags=["System"],
 )
+@app.get(
+    "/api/health",
+    response_model=HealthResponse,
+    summary="Health Check (API Gateway Alias)",
+    tags=["System"],
+    include_in_schema=False,
+)
 async def health_check():
     """Server health check endpoint."""
     return HealthResponse(
