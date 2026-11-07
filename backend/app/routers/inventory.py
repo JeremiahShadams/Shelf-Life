@@ -24,6 +24,7 @@ from app.schemas.schemas import (
 from app.ai.estimator import estimate_shelf_life, get_days_for_method
 from app.auth import get_current_user
 from app.models.schema import User as UserModel
+from app.services.storage import storage_service
 from app.services.expiry import (
     compute_days_left,
     compute_status,
@@ -355,6 +356,7 @@ async def delete_inventory_item(
         raise HTTPException(status_code=404, detail="Inventory item not found")
 
     fruit_name = item.fruit.name
+    image_to_delete = item.image_path
 
     # Remove the item's notifications with a bulk delete first — cascading
     # through the relationship would lazy-load inside the async session.
@@ -366,5 +368,8 @@ async def delete_inventory_item(
     # sent (see add_to_inventory for the why — this fixes the flaky
     # GET-after-DELETE race).
     await db.commit()
+
+    if image_to_delete:
+        await storage_service.delete_image(image_to_delete)
 
     return MessageResponse(message=f"'{fruit_name}' removed from inventory")

@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.models.schema import Fruit
+from app.services.storage import storage_service
 from app.ai.classifier import classify_fruit
 from app.ai.estimator import estimate_shelf_life
 from app.ai.compatibility import check_compatibility
@@ -157,8 +158,8 @@ async def process_scan(contents: bytes, filename: str | None, db: AsyncSession) 
     if not classifier_available():
         raise ScanError(MODEL_NOT_DEPLOYED, status_code=503)
 
-    # --- Step 1: Save image ---
-    file_path = await save_uploaded_image(contents, filename)
+    # --- Step 1: Save image (local copy + cloud upload if configured) ---
+    file_path, image_url = await storage_service.save_image(contents, filename)
 
     try:
         # --- Step 2: Classify the fruit ---
@@ -234,7 +235,7 @@ async def process_scan(contents: bytes, filename: str | None, db: AsyncSession) 
             "compatibility_warnings": verdict.compatibility_warnings,
 
             # Metadata
-            "image_path": str(file_path),
+            "image_path": image_url,
         }
 
     except ScanError:

@@ -70,9 +70,16 @@ class Settings(BaseSettings):
             )
         return self
 
-    # --- File Uploads ---
+    # --- File Uploads & Cloud Object Storage ---
     upload_dir: str = "uploads"
     max_upload_size_mb: int = 10
+    storage_backend: str = "local"  # "local", "s3", "r2"
+    s3_bucket: str = ""
+    s3_region: str = "us-east-1"
+    s3_access_key_id: str = ""
+    s3_secret_access_key: str = ""
+    s3_endpoint_url: str = ""  # Cloudflare R2 / MinIO endpoint
+    s3_public_url: str = ""    # Public CDN prefix (e.g. https://cdn.frescoapp.com)
 
     # --- Demo Mode ---
     demo_mode: bool = False
