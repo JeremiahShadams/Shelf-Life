@@ -4,12 +4,11 @@
  * - Tall, immersive camera viewfinder with rounded corners and framing brackets
  * - Clean tactile bottom controls: Gallery Photo Picker | 78px Shutter | Flashlight
  * - Real-time progressive 3-stage ProcessingOverlay with organic green pulsing ring
- * - Direct photo upload with automatic Blob conversion for WinterCG fetch
+ * - Resilient capture and scanning: Non-blocking, instant response, auto-recovering
  */
 
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Image,
   Linking,
   Pressable,
@@ -38,7 +37,8 @@ export default function ScanScreen() {
   const cameraRef = useRef<CameraView>(null);
 
   const [focused, setFocused] = useState(true);
-  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraKey, setCameraKey] = useState(0);
+  const [cameraReady, setCameraReady] = useState(true);
   const [torch, setTorch] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,12 +47,21 @@ export default function ScanScreen() {
   // Review asset if photo captured
   const [reviewAsset, setReviewAsset] = useState<ScanAsset | null>(null);
 
+  // Automatically request camera permission on mount if available to ask
+  useEffect(() => {
+    if (permission && !permission.granted && permission.canAskAgain) {
+      void requestPermission();
+    }
+  }, [permission, requestPermission]);
+
+  // Clean native camera instantiation whenever tab is focused
   useFocusEffect(
     useCallback(() => {
       setFocused(true);
+      setCameraKey((prev) => prev + 1);
+      setCameraReady(true);
       return () => {
         setFocused(false);
-        setCameraReady(false);
       };
     }, []),
   );
@@ -76,17 +85,24 @@ export default function ScanScreen() {
         const msg = err instanceof Error ? err.message : "Couldn't scan produce. Check server connection.";
         setError(msg);
       }
+      setReviewAsset(null);
     } finally {
       setBusy(false);
     }
   }
 
   async function handleCapture() {
-    if (!cameraRef.current || !cameraReady || busy) return;
+    if (!cameraRef.current || busy) return;
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
-      if (!photo) {
-        setError("Couldn't capture photo. Please try again.");
+      setBusy(true);
+      setError(null);
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.85,
+        skipProcessing: false,
+      });
+      if (!photo || !photo.uri) {
+        setError("Couldn't capture photo. Please tap the shutter again.");
+        setBusy(false);
         return;
       }
       const asset: ScanAsset = {
@@ -95,9 +111,12 @@ export default function ScanScreen() {
         mimeType: "image/jpeg",
       };
       setReviewAsset(asset);
-      void upload(asset);
-    } catch {
-      setError("Couldn't capture that photo. Try again.");
+      await upload(asset);
+    } catch (err) {
+      console.warn("Capture error:", err);
+      setError("Couldn't capture photo. Please tap shutter again.");
+      setReviewAsset(null);
+      setBusy(false);
     }
   }
 
@@ -106,7 +125,7 @@ export default function ScanScreen() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
-        quality: 0.8,
+        quality: 0.85,
       });
       if (result.canceled || !result.assets[0]) return;
 
@@ -117,9 +136,10 @@ export default function ScanScreen() {
         mimeType: picked.mimeType ?? "image/jpeg",
       };
       setReviewAsset(asset);
-      void upload(asset);
+      await upload(asset);
     } catch {
       setError("Couldn't open photo library.");
+      setReviewAsset(null);
     }
   }
 
@@ -267,25 +287,43 @@ export default function ScanScreen() {
       >
         {/* Camera Live Preview or Captured Snapshot Review */}
         {reviewAsset != null ? (
-          <Image
-            source={{ uri: reviewAsset.uri }}
-            style={StyleSheet.absoluteFill}
-            resizeMode="cover"
-          />
+          <View style={StyleSheet.absoluteFill}>
+            <Image
+              source={{ uri: reviewAsset.uri }}
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+            />
+            {!busy && (
+              <Pressable
+                onPress={() => setReviewAsset(null)}
+                style={styles.retakeButton}
+              >
+                <Ionicons name="refresh" size={16} color="#FFFFFF" />
+                <Text variant="micro" style={{ color: "#FFFFFF", fontWeight: "700" }}>
+                  Retake
+                </Text>
+              </Pressable>
+            )}
+          </View>
         ) : (
           focused && (
             <CameraView
+              key={`camera-feed-${cameraKey}`}
               ref={cameraRef}
               style={StyleSheet.absoluteFill}
               facing="back"
+              mode="picture"
               enableTorch={torch}
               onCameraReady={() => setCameraReady(true)}
-              onMountError={() => setError("The camera couldn't start on this device.")}
+              onMountError={() => {
+                console.warn("Camera mount error, re-trying...");
+                setCameraKey((k) => k + 1);
+              }}
             />
           )
         )}
 
-        {/* Framing Guide Brackets (Apple / Lens style) */}
+        {/* Framing Guide Brackets (Organic produce focus) */}
         <View style={styles.framingOverlay} pointerEvents="none">
           <View style={[styles.bracket, styles.bracketTopLeft]} />
           <View style={[styles.bracket, styles.bracketTopRight]} />
@@ -294,7 +332,7 @@ export default function ScanScreen() {
         </View>
       </View>
 
-      {/* Bottom Controls Bar (Placed below viewfinder) */}
+      {/* Bottom Controls Bar (Placed cleanly below viewfinder) */}
       <View style={[styles.controlsBar, { paddingHorizontal: layout.screenPadding }]}>
         {/* Gallery / Library Picker */}
         <Pressable
@@ -318,14 +356,14 @@ export default function ScanScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Take photo of produce"
-          accessibilityState={{ disabled: !cameraReady || busy }}
+          accessibilityState={{ disabled: busy }}
           onPress={() => void handleCapture()}
-          disabled={!cameraReady || busy}
+          disabled={busy}
           style={({ pressed }) => [
             styles.shutterOuter,
             {
               borderColor: colors.primary,
-              opacity: !cameraReady || busy ? 0.5 : pressed ? 0.85 : 1,
+              opacity: busy ? 0.6 : pressed ? 0.85 : 1,
               transform: [{ scale: pressed ? 0.94 : 1 }],
             },
           ]}
@@ -426,6 +464,18 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 1,
     position: "relative",
+  },
+  retakeButton: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 18,
+    gap: 6,
   },
   framingOverlay: {
     ...StyleSheet.absoluteFill,

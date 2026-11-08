@@ -29,6 +29,7 @@
         "CAMERA",
         "READ_MEDIA_IMAGES"
       ],
+      "usesCleartextTraffic": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {

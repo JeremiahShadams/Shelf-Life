@@ -7,7 +7,7 @@
  * live days/status math mirror the backend so screens behave identically.
  */
 
-import { api } from "./api";
+import { api, ApiError } from "./api";
 import { getFruit } from "./fruits";
 import type {
   InventoryItem,
@@ -65,7 +65,12 @@ function guestList(): InventoryListResponse {
 
 export function listInventory(token: string): Promise<InventoryListResponse> {
   if (token === GUEST_TOKEN) return Promise.resolve(guestList());
-  return api.get<InventoryListResponse>("/api/inventory/", token);
+  return api.get<InventoryListResponse>("/api/inventory/", token).catch((err) => {
+    if (err instanceof ApiError && err.status === 0) {
+      return guestList();
+    }
+    throw err;
+  });
 }
 
 export function getInventoryItem(token: string, itemId: number): Promise<InventoryItem> {
@@ -74,19 +79,16 @@ export function getInventoryItem(token: string, itemId: number): Promise<Invento
     if (item == null) return Promise.reject(new Error("Inventory item not found"));
     return Promise.resolve(withLiveState(item));
   }
-  return api.get<InventoryItem>(`/api/inventory/${itemId}`, token);
+  return api.get<InventoryItem>(`/api/inventory/${itemId}`, token).catch((err) => {
+    if (err instanceof ApiError && err.status === 0) {
+      const item = guestItems.find((i) => i.id === itemId);
+      if (item != null) return withLiveState(item);
+    }
+    throw err;
+  });
 }
 
-export async function addToInventory(
-  token: string,
-  body: InventoryItemCreate,
-): Promise<InventoryItem> {
-  if (token !== GUEST_TOKEN) {
-    return api.post<InventoryItem>("/api/inventory/", body, token);
-  }
-
-  // Guest add: the fruit reference table is public, so fetch the real row
-  // and store a local copy with the same deadline math.
+async function addGuestItem(body: InventoryItemCreate): Promise<InventoryItem> {
   const fruit = await getFruit(body.fruit_id);
   const storage = body.storage_method ?? "fridge";
   const days = shelfLifeDays(fruit, storage);
@@ -113,6 +115,25 @@ export async function addToInventory(
 
   guestItems = [item, ...guestItems];
   return withLiveState(item);
+}
+
+export async function addToInventory(
+  token: string,
+  body: InventoryItemCreate,
+): Promise<InventoryItem> {
+  if (token !== GUEST_TOKEN) {
+    try {
+      return await api.post<InventoryItem>("/api/inventory/", body, token);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 0) {
+        console.log("[addToInventory] Server unreachable, caching in local inventory.");
+        return addGuestItem(body);
+      }
+      throw err;
+    }
+  }
+
+  return addGuestItem(body);
 }
 
 export async function updateInventoryItem(
