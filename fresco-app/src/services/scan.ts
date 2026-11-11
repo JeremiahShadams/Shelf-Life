@@ -257,12 +257,13 @@ export async function scanImage(asset: ScanAsset): Promise<ScanResult> {
     }
 
     const uploadPromise = api.upload<ScanResult>("/api/scan/", formData, authToken);
-    // 3.5s timeout prevents stalling if host PC IP is unreachable or firewall blocks
+    // 30s timeout allows MobileNetV2 deep learning model inference to finish on CPU without premature cutoff
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new ApiError(0, "Backend scan connection timed out")), 3500),
+      setTimeout(() => reject(new ApiError(0, "Backend AI model inference timed out (>30s)")), 30000),
     );
 
     const result = await Promise.race([uploadPromise, timeoutPromise]);
+    console.log("[scanImage] Real AI model inference verdict received:", result.fruit.name, result.status);
     // Ensure image_path points to captured photo if backend didn't supply one
     if (!result.image_path) {
       result.image_path = asset.uri;
