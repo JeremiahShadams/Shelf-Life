@@ -6,12 +6,17 @@
  */
 
 import Constants from "expo-constants";
+import { Platform } from "react-native";
 
 function resolveApiUrl(): string {
-  const envUrl = (process.env as { EXPO_PUBLIC_API_URL?: string }).EXPO_PUBLIC_API_URL;
+  // Explicit configuration always wins. Production builds must set this.
+  const envUrl = (process.env as { EXPO_PUBLIC_API_URL?: string }).EXPO_PUBLIC_API_URL?.trim();
   if (envUrl) {
-    return envUrl;
+    return envUrl.replace(/\/+$/, "");
   }
+
+  // In Expo Go / dev builds, derive the host from the dev server so a physical
+  // phone talks to the machine running the backend instead of itself.
   const hostUri =
     Constants.expoConfig?.hostUri ??
     (Constants as unknown as { manifest?: { debuggerHost?: string } }).manifest?.debuggerHost ??
@@ -21,8 +26,10 @@ function resolveApiUrl(): string {
     const hostIp = hostUri.split(":")[0];
     return `http://${hostIp}:8000`;
   }
-  // Fallback to PC's LAN IP so a physical phone connects to the host PC instead of itself (localhost)
-  return "http://192.168.100.6:8000";
+
+  // Simulator/emulator defaults. 10.0.2.2 is the host machine from the Android
+  // emulator; iOS simulator and web can use localhost.
+  return Platform.OS === "android" ? "http://10.0.2.2:8000" : "http://localhost:8000";
 }
 
 const API_URL = resolveApiUrl();
@@ -55,6 +62,8 @@ type RequestOptions = {
   body?: unknown;
   /** Multipart body. Mutually exclusive with `body`. */
   formData?: FormData;
+  /** Optional abort signal (used by long-running scans). */
+  signal?: AbortSignal;
 };
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -68,9 +77,13 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       method: options.method ?? "GET",
       headers,
       body: options.formData ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined),
+      signal: options.signal,
     });
   } catch (err) {
     // fetch throws on network-level failures (DNS, refused, offline, blocked by firewall)
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new ApiError(0, "The scan timed out. Please try again.");
+    }
     const reason = err instanceof Error ? err.message : String(err);
     throw new ApiError(0, `Can't reach server at ${API_URL}: ${reason}`);
   }
@@ -104,8 +117,8 @@ export const api = {
    * Multipart upload. Let fetch set Content-Type so the boundary is correct —
    * never set it manually for FormData.
    */
-  upload: <T>(path: string, formData: FormData, token?: string | null) =>
-    request<T>(path, { method: "POST", formData, token }),
+  upload: <T>(path: string, formData: FormData, token?: string | null, signal?: AbortSignal) =>
+    request<T>(path, { method: "POST", formData, token, signal }),
 };
 
 export { API_URL };

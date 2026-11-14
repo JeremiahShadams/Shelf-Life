@@ -22,7 +22,8 @@ import { router, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../../theme";
 import { Button, ErrorState, Loading, ProcessingOverlay, Text } from "../../components/ui";
-import { isModelNotDeployed, scanImage, type ScanAsset } from "../../services/scan";
+import { useHealth } from "../../hooks/useHealth";
+import { classifyScanError, scanImage, type ScanAsset } from "../../services/scan";
 
 function fileName(uri: string, fallback: string): string {
   const tail = uri.split("/").pop();
@@ -36,9 +37,14 @@ export default function ScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
 
+  // Tell the user up front if the backend or model is unavailable, instead of
+  // letting them take a photo that cannot be analyzed.
+  const health = useHealth();
+  const serverUnreachable = health.isError;
+  const modelUnavailable = health.data?.ai_scanning === "unavailable";
+
   const [focused, setFocused] = useState(true);
   const [cameraKey, setCameraKey] = useState(0);
-  const [cameraReady, setCameraReady] = useState(true);
   const [torch, setTorch] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +52,8 @@ export default function ScanScreen() {
 
   // Review asset if photo captured
   const [reviewAsset, setReviewAsset] = useState<ScanAsset | null>(null);
+  // Last attempted asset, kept so a failed scan can be retried without recapturing
+  const [lastAsset, setLastAsset] = useState<ScanAsset | null>(null);
 
   // Automatically request camera permission on mount if available to ask
   useEffect(() => {
@@ -59,7 +67,6 @@ export default function ScanScreen() {
     useCallback(() => {
       setFocused(true);
       setCameraKey((prev) => prev + 1);
-      setCameraReady(true);
       return () => {
         setFocused(false);
       };
@@ -70,25 +77,45 @@ export default function ScanScreen() {
     setBusy(true);
     setError(null);
     setModelMissing(false);
+    setLastAsset(asset);
 
     try {
       const result = await scanImage(asset);
       setReviewAsset(null);
+      setLastAsset(null);
       router.push({
         pathname: "/scan-result",
         params: { scan: JSON.stringify(result) },
       });
     } catch (err) {
-      if (isModelNotDeployed(err)) {
+      const kind = classifyScanError(err);
+      if (kind === "model_unavailable") {
         setModelMissing(true);
+      } else if (kind === "not_recognized") {
+        setError(
+          "We couldn't identify this produce. Try a single item, filling the frame in good light.",
+        );
+      } else if (kind === "offline") {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Can't reach the Fresco server. Check your connection and try again.",
+        );
       } else {
-        const msg = err instanceof Error ? err.message : "Couldn't scan produce. Check server connection.";
-        setError(msg);
+        setError(
+          err instanceof Error ? err.message : "Couldn't scan produce. Please try again.",
+        );
       }
       setReviewAsset(null);
     } finally {
       setBusy(false);
     }
+  }
+
+  function retryScan() {
+    if (lastAsset == null || busy) return;
+    setReviewAsset(lastAsset);
+    void upload(lastAsset);
   }
 
   async function handleCapture() {
@@ -250,6 +277,34 @@ export default function ScanScreen() {
         </Pressable>
       </View>
 
+      {/* Server / model availability banner */}
+      {(serverUnreachable || modelUnavailable) && (
+        <View
+          style={[
+            styles.errorBanner,
+            {
+              backgroundColor: colors.accentSoft,
+              borderColor: colors.accent,
+              marginHorizontal: layout.screenPadding,
+            },
+          ]}
+        >
+          <Ionicons name="cloud-offline-outline" size={18} color={colors.accent} />
+          <Text variant="caption" style={[styles.errorBannerText, { color: colors.textPrimary }]}>
+            {serverUnreachable
+              ? "Can't reach the Fresco server. Scans will fail until it's back online."
+              : "The AI model isn't loaded on the server. You can still add items manually."}
+          </Text>
+          {serverUnreachable && (
+            <Pressable onPress={() => void health.refetch()} hitSlop={8}>
+              <Text variant="caption" style={{ color: colors.accent, fontWeight: "700" }}>
+                Retry
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+
       {/* Error Banner if error occurred */}
       {error != null && (
         <View
@@ -266,6 +321,13 @@ export default function ScanScreen() {
           <Text variant="caption" style={[styles.errorBannerText, { color: colors.danger }]}>
             {error}
           </Text>
+          {lastAsset != null && !busy && (
+            <Pressable onPress={retryScan} hitSlop={8}>
+              <Text variant="caption" style={{ color: colors.danger, fontWeight: "700" }}>
+                Retry
+              </Text>
+            </Pressable>
+          )}
           <Pressable onPress={() => setError(null)} hitSlop={8}>
             <Ionicons name="close" size={16} color={colors.danger} />
           </Pressable>
@@ -314,7 +376,6 @@ export default function ScanScreen() {
               facing="back"
               mode="picture"
               enableTorch={torch}
-              onCameraReady={() => setCameraReady(true)}
               onMountError={() => {
                 console.warn("Camera mount error, re-trying...");
                 setCameraKey((k) => k + 1);
