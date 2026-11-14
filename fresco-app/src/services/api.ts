@@ -67,7 +67,9 @@ type RequestOptions = {
 };
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {
+    "bypass-tunnel-reminder": "true",
+  };
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
   if (options.token) headers["Authorization"] = `Bearer ${options.token}`;
 
