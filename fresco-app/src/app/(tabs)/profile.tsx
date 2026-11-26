@@ -1,30 +1,12 @@
 /**
- * FRESCO — Account & Settings Screen
- * Matches SuperDesign draft (89da5db1-42ff-4c58-9122-955ab3082c34):
- * - User Profile card with circular avatar initials, email, and Edit Profile action
- * - Preferences Group:
- *     - Notifications switch toggle with instant Toast confirmation
- *     - Weight Units selector (Kg / Lbs) with live toggle
- *     - Default Storage selector (Fridge / Counter / Freezer)
- * - Help & Support Group: FAQ, Contact Us, About FRESCO
- * - Account Actions Group:
- *     - Change Password
- *     - Account Deletion option (App Store guideline 5.1.1 compliance)
- *     - Destructive Sign Out action with custom modal confirmation dialog
- * - App version footer
+ * FRESCO — Profile & Settings Screen
+ * - Tab label, route name, and header agree on "Profile"
+ * - Wired with haptic selection feedback and local notification permissions
+ * - Honest guest-mode labeling (no placeholder member@frescoapp.com)
  */
 
 import React, { useState } from "react";
-import {
-  Alert,
-  Linking,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  View,
-} from "react-native";
+import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -33,22 +15,25 @@ import { Button, Text, Toast } from "../../components/ui";
 import { useAuth } from "../../stores/auth";
 import { useHealth } from "../../hooks/useHealth";
 import { useNotifications } from "../../hooks/useNotifications";
+import { requestLocalNotificationPermission } from "../../services/localNotifications";
+import { hapticSelection } from "../../utils/haptics";
 import type { StorageMethod } from "../../types/api";
 
 type WeightUnit = "Kg" | "Lbs";
 
-export default function AccountScreen() {
+export default function ProfileScreen() {
   const theme = useTheme();
   const { colors, spacing, layout, radius, elevation } = theme;
 
   const user = useAuth((s) => s.user);
+  const token = useAuth((s) => s.token);
+  const isGuest = token === "guest_demo_token";
   const logout = useAuth((s) => s.logout);
   const updateUserPreferences = useAuth((s) => s.updateUserPreferences);
   const deleteUserAccount = useAuth((s) => s.deleteUserAccount);
   const health = useHealth();
   const notifications = useNotifications();
 
-  // Preferences State
   const [notificationsEnabled, setNotificationsEnabled] = useState(
     user?.notifications_enabled ?? true,
   );
@@ -59,25 +44,31 @@ export default function AccountScreen() {
     (user?.default_storage as StorageMethod) ?? "fridge",
   );
 
-  // Dialog & Toast State
   const [signOutModalVisible, setSignOutModalVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // User initials
-  const initials = (user?.username ?? "JD")
+  const initials = (user?.username ?? "GU")
     .split(/[\s_]+/)
     .map((w) => w[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
 
-  const handleToggleNotifications = (value: boolean) => {
+  const handleToggleNotifications = async (value: boolean) => {
+    void hapticSelection();
+    if (value) {
+      const granted = await requestLocalNotificationPermission();
+      if (!granted) {
+        setToastMessage("Enable notifications in device Settings for expiry alerts");
+      }
+    }
     setNotificationsEnabled(value);
     void updateUserPreferences({ notifications_enabled: value });
-    setToastMessage(value ? "Notifications enabled" : "Notifications disabled");
+    setToastMessage(value ? "Expiry reminders enabled" : "Expiry reminders paused");
   };
 
   const handleToggleUnits = () => {
+    void hapticSelection();
     const nextUnit: WeightUnit = weightUnit === "Kg" ? "Lbs" : "Kg";
     setWeightUnit(nextUnit);
     void updateUserPreferences({ weight_unit: nextUnit.toLowerCase() });
@@ -85,6 +76,7 @@ export default function AccountScreen() {
   };
 
   const handleToggleDefaultStorage = () => {
+    void hapticSelection();
     const nextStorage: StorageMethod =
       defaultStorage === "fridge"
         ? "room_temp"
@@ -94,18 +86,14 @@ export default function AccountScreen() {
     setDefaultStorage(nextStorage);
     void updateUserPreferences({ default_storage: nextStorage });
     const label =
-      nextStorage === "fridge"
-        ? "Fridge"
-        : nextStorage === "room_temp"
-          ? "Counter"
-          : "Freezer";
+      nextStorage === "fridge" ? "Fridge" : nextStorage === "room_temp" ? "Counter" : "Freezer";
     setToastMessage(`Default storage set to ${label}`);
   };
 
   const handleFAQ = () => {
     Alert.alert(
       "Frequently Asked Questions",
-      "• How does Fresco know expiry?\nOur AI model analyzes color, texture, and ethylene sensitivity against USDA post-harvest guidelines.\n\n• Can I scan any fruit?\nFresco supports 44 distinct fruit varieties, with more produce added every update.",
+      "• How does Fresco estimate shelf life?\nFresco pairs AI produce recognition with USDA post-harvest guidelines and your chosen storage method.\n\n• Do reminders work offline?\nYes — once you add an item to your Fridge, reminders are scheduled directly on your device.",
       [{ text: "Got it" }],
     );
   };
@@ -115,18 +103,26 @@ export default function AccountScreen() {
   };
 
   const handleAbout = () => {
-    const modelStatus = health.data?.ai_scanning === "available" ? "Active (MobileNetV2)" : "Offline";
+    const modelStatus = health.data?.ai_scanning === "available" ? "Active" : "Offline";
     Alert.alert(
-      "About FRESCO",
-      `Version 1.0.0\nBuild 2026.11\nAI Model: ${modelStatus}\n\nFresco helps households minimize food waste and optimize produce shelf life.`,
+      "About Fresco",
+      `Version 1.0.0\nScanner status: ${modelStatus}\n\nFresco helps households cut food waste by tracking real produce shelf life.`,
       [{ text: "Close" }],
     );
   };
 
   const handleChangePassword = () => {
+    if (isGuest) {
+      Alert.alert(
+        "Guest session",
+        "Create an account or sign in to set a password and sync your fridge across devices.",
+        [{ text: "OK" }],
+      );
+      return;
+    }
     Alert.alert(
-      "Change Password",
-      "We'll send a secure password reset link to your registered email address.",
+      "Change password",
+      "We'll send a password reset link to your registered email address.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -139,12 +135,14 @@ export default function AccountScreen() {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      "Delete Account?",
-      "This action is permanent and will delete all your inventory history, tracked fruits, and notification records.",
+      isGuest ? "Clear local data?" : "Delete account?",
+      isGuest
+        ? "This removes all items saved on this device and signs you out."
+        : "This permanently deletes your account, tracked produce, and alert history.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Delete My Account",
+          text: isGuest ? "Clear Data" : "Delete Account",
           style: "destructive",
           onPress: () => {
             void deleteUserAccount();
@@ -167,28 +165,21 @@ export default function AccountScreen() {
         : "Freezer";
 
   return (
-    <SafeAreaView
-      edges={["top"]}
-      style={[styles.screen, { backgroundColor: colors.background }]}
-    >
-      {/* Header */}
+    <SafeAreaView edges={["top"]} style={[styles.screen, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingHorizontal: layout.screenPadding }]}>
-        <Text variant="largeTitle" style={styles.headerTitle}>
-          Account
+        <Text variant="largeTitle" color="brand">
+          Profile
         </Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingHorizontal: layout.screenPadding },
-        ]}
+        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: layout.screenPadding }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Profile Card */}
+        {/* Profile / Alerts Card */}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Edit profile"
+          accessibilityLabel="View expiry alerts"
           onPress={() => router.push("/notifications")}
           style={({ pressed }) => [
             styles.profileCard,
@@ -201,32 +192,32 @@ export default function AccountScreen() {
             },
           ]}
         >
-          {/* Avatar with Initials */}
           <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
-            <Text style={styles.avatarInitials}>{initials}</Text>
+            <Text variant="title" color="inverse">
+              {initials}
+            </Text>
           </View>
 
-          {/* User Details */}
           <View style={styles.userDetails}>
-            <Text style={styles.userName}>{user?.username ?? "Fresco Member"}</Text>
-            <Text style={styles.userEmail} numberOfLines={1}>
-              {user?.email ?? "member@frescoapp.com"}
+            <Text variant="cardTitle" color="primary">
+              {isGuest ? "Guest on this device" : user?.username ?? "Member"}
             </Text>
-            <Text style={[styles.editProfileText, { color: colors.accent }]}>
-              VIEW ALERTS ({notifications.data?.total ?? 0})
+            <Text variant="cardMeta" color="secondary" numberOfLines={1} style={styles.userSub}>
+              {isGuest ? "Saved locally — sign in to sync" : user?.email ?? ""}
+            </Text>
+            <Text variant="micro" color="accent" style={styles.alertsLink}>
+              View expiry alerts ({notifications.data?.total ?? 0})
             </Text>
           </View>
 
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color={colors.textTertiary}
-          />
+          <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
         </Pressable>
 
-        {/* SECTION: PREFERENCES */}
+        {/* Preferences */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeader}>PREFERENCES</Text>
+          <Text variant="caption" color="tertiary" style={styles.sectionHeader}>
+            Preferences
+          </Text>
 
           <View
             style={[
@@ -239,38 +230,24 @@ export default function AccountScreen() {
               },
             ]}
           >
-            {/* Notifications Row */}
-            <View
-              style={[
-                styles.groupRow,
-                { borderBottomColor: colors.border },
-              ]}
-            >
+            <View style={[styles.groupRow, { borderBottomColor: colors.border }]}>
               <View style={styles.rowLeft}>
-                <View
-                  style={[
-                    styles.rowIconCircle,
-                    { backgroundColor: colors.backgroundMuted },
-                  ]}
-                >
-                  <Ionicons
-                    name="notifications-outline"
-                    size={18}
-                    color={colors.textPrimary}
-                  />
+                <View style={[styles.rowIconCircle, { backgroundColor: colors.backgroundMuted }]}>
+                  <Ionicons name="notifications-outline" size={18} color={colors.primary} />
                 </View>
-                <Text style={styles.rowTitle}>Notifications</Text>
+                <Text variant="body" color="primary">
+                  Expiry alerts
+                </Text>
               </View>
 
               <Switch
                 value={notificationsEnabled}
-                onValueChange={handleToggleNotifications}
+                onValueChange={(val) => void handleToggleNotifications(val)}
                 trackColor={{ false: colors.borderStrong, true: colors.primary }}
-                thumbColor="#FFFFFF"
+                thumbColor={colors.surface}
               />
             </View>
 
-            {/* Weight Units Row */}
             <Pressable
               onPress={handleToggleUnits}
               style={({ pressed }) => [
@@ -282,32 +259,22 @@ export default function AccountScreen() {
               ]}
             >
               <View style={styles.rowLeft}>
-                <View
-                  style={[
-                    styles.rowIconCircle,
-                    { backgroundColor: colors.backgroundMuted },
-                  ]}
-                >
-                  <Ionicons
-                    name="scale-outline"
-                    size={18}
-                    color={colors.textPrimary}
-                  />
+                <View style={[styles.rowIconCircle, { backgroundColor: colors.backgroundMuted }]}>
+                  <Ionicons name="scale-outline" size={18} color={colors.primary} />
                 </View>
-                <Text style={styles.rowTitle}>Weight Units</Text>
+                <Text variant="body" color="primary">
+                  Weight units
+                </Text>
               </View>
 
               <View style={styles.rowRight}>
-                <Text style={styles.valueText}>{weightUnit}</Text>
-                <Ionicons
-                  name="chevron-forward"
-                  size={18}
-                  color={colors.textTertiary}
-                />
+                <Text variant="caption" color="secondary">
+                  {weightUnit}
+                </Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
               </View>
             </Pressable>
 
-            {/* Default Storage Row */}
             <Pressable
               onPress={handleToggleDefaultStorage}
               style={({ pressed }) => [
@@ -316,36 +283,29 @@ export default function AccountScreen() {
               ]}
             >
               <View style={styles.rowLeft}>
-                <View
-                  style={[
-                    styles.rowIconCircle,
-                    { backgroundColor: colors.backgroundMuted },
-                  ]}
-                >
-                  <Ionicons
-                    name="snow-outline"
-                    size={18}
-                    color={colors.textPrimary}
-                  />
+                <View style={[styles.rowIconCircle, { backgroundColor: colors.backgroundMuted }]}>
+                  <Ionicons name="snow-outline" size={18} color={colors.primary} />
                 </View>
-                <Text style={styles.rowTitle}>Default Storage</Text>
+                <Text variant="body" color="primary">
+                  Default storage
+                </Text>
               </View>
 
               <View style={styles.rowRight}>
-                <Text style={styles.valueText}>{storageDisplayLabel}</Text>
-                <Ionicons
-                  name="chevron-forward"
-                  size={18}
-                  color={colors.textTertiary}
-                />
+                <Text variant="caption" color="secondary">
+                  {storageDisplayLabel}
+                </Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
               </View>
             </Pressable>
           </View>
         </View>
 
-        {/* SECTION: HELP & SUPPORT */}
+        {/* Help & support */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeader}>HELP &amp; SUPPORT</Text>
+          <Text variant="caption" color="tertiary" style={styles.sectionHeader}>
+            Help &amp; support
+          </Text>
 
           <View
             style={[
@@ -358,7 +318,6 @@ export default function AccountScreen() {
               },
             ]}
           >
-            {/* FAQ */}
             <Pressable
               onPress={handleFAQ}
               style={({ pressed }) => [
@@ -370,28 +329,16 @@ export default function AccountScreen() {
               ]}
             >
               <View style={styles.rowLeft}>
-                <View
-                  style={[
-                    styles.rowIconCircle,
-                    { backgroundColor: colors.backgroundMuted },
-                  ]}
-                >
-                  <Ionicons
-                    name="help-circle-outline"
-                    size={18}
-                    color={colors.textPrimary}
-                  />
+                <View style={[styles.rowIconCircle, { backgroundColor: colors.backgroundMuted }]}>
+                  <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
                 </View>
-                <Text style={styles.rowTitle}>FAQ</Text>
+                <Text variant="body" color="primary">
+                  FAQ
+                </Text>
               </View>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={colors.textTertiary}
-              />
+              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
             </Pressable>
 
-            {/* Contact Us */}
             <Pressable
               onPress={handleContactUs}
               style={({ pressed }) => [
@@ -403,28 +350,16 @@ export default function AccountScreen() {
               ]}
             >
               <View style={styles.rowLeft}>
-                <View
-                  style={[
-                    styles.rowIconCircle,
-                    { backgroundColor: colors.backgroundMuted },
-                  ]}
-                >
-                  <Ionicons
-                    name="chatbubble-ellipses-outline"
-                    size={18}
-                    color={colors.textPrimary}
-                  />
+                <View style={[styles.rowIconCircle, { backgroundColor: colors.backgroundMuted }]}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.primary} />
                 </View>
-                <Text style={styles.rowTitle}>Contact Us</Text>
+                <Text variant="body" color="primary">
+                  Contact us
+                </Text>
               </View>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={colors.textTertiary}
-              />
+              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
             </Pressable>
 
-            {/* About FRESCO */}
             <Pressable
               onPress={handleAbout}
               style={({ pressed }) => [
@@ -433,32 +368,23 @@ export default function AccountScreen() {
               ]}
             >
               <View style={styles.rowLeft}>
-                <View
-                  style={[
-                    styles.rowIconCircle,
-                    { backgroundColor: colors.backgroundMuted },
-                  ]}
-                >
-                  <Ionicons
-                    name="information-outline"
-                    size={18}
-                    color={colors.textPrimary}
-                  />
+                <View style={[styles.rowIconCircle, { backgroundColor: colors.backgroundMuted }]}>
+                  <Ionicons name="information-outline" size={18} color={colors.primary} />
                 </View>
-                <Text style={styles.rowTitle}>About FRESCO</Text>
+                <Text variant="body" color="primary">
+                  About Fresco
+                </Text>
               </View>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={colors.textTertiary}
-              />
+              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
             </Pressable>
           </View>
         </View>
 
-        {/* SECTION: ACCOUNT ACTIONS */}
+        {/* Account actions */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeader}>ACCOUNT ACTIONS</Text>
+          <Text variant="caption" color="tertiary" style={styles.sectionHeader}>
+            Account actions
+          </Text>
 
           <View
             style={[
@@ -471,40 +397,29 @@ export default function AccountScreen() {
               },
             ]}
           >
-            {/* Change Password */}
-            <Pressable
-              onPress={handleChangePassword}
-              style={({ pressed }) => [
-                styles.groupRow,
-                {
-                  borderBottomColor: colors.border,
-                  backgroundColor: pressed ? colors.surfacePressed : colors.surface,
-                },
-              ]}
-            >
-              <View style={styles.rowLeft}>
-                <View
-                  style={[
-                    styles.rowIconCircle,
-                    { backgroundColor: colors.backgroundMuted },
-                  ]}
-                >
-                  <Ionicons
-                    name="lock-closed-outline"
-                    size={18}
-                    color={colors.textPrimary}
-                  />
+            {!isGuest && (
+              <Pressable
+                onPress={handleChangePassword}
+                style={({ pressed }) => [
+                  styles.groupRow,
+                  {
+                    borderBottomColor: colors.border,
+                    backgroundColor: pressed ? colors.surfacePressed : colors.surface,
+                  },
+                ]}
+              >
+                <View style={styles.rowLeft}>
+                  <View style={[styles.rowIconCircle, { backgroundColor: colors.backgroundMuted }]}>
+                    <Ionicons name="lock-closed-outline" size={18} color={colors.primary} />
+                  </View>
+                  <Text variant="body" color="primary">
+                    Change password
+                  </Text>
                 </View>
-                <Text style={styles.rowTitle}>Change Password</Text>
-              </View>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={colors.textTertiary}
-              />
-            </Pressable>
+                <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+              </Pressable>
+            )}
 
-            {/* Delete Account (Apple App Store Guideline 5.1.1 Requirement) */}
             <Pressable
               onPress={handleDeleteAccount}
               style={({ pressed }) => [
@@ -516,30 +431,16 @@ export default function AccountScreen() {
               ]}
             >
               <View style={styles.rowLeft}>
-                <View
-                  style={[
-                    styles.rowIconCircle,
-                    { backgroundColor: colors.dangerSoft },
-                  ]}
-                >
-                  <Ionicons
-                    name="trash-outline"
-                    size={18}
-                    color={colors.statusUrgent}
-                  />
+                <View style={[styles.rowIconCircle, { backgroundColor: colors.dangerSoft }]}>
+                  <Ionicons name="trash-outline" size={18} color={colors.statusUrgent} />
                 </View>
-                <Text style={[styles.rowTitle, { color: colors.statusUrgent }]}>
-                  Delete Account
+                <Text variant="body" color="danger">
+                  {isGuest ? "Clear device data" : "Delete account"}
                 </Text>
               </View>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={colors.textTertiary}
-              />
+              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
             </Pressable>
 
-            {/* Destructive Sign Out Row */}
             <Pressable
               onPress={() => setSignOutModalVisible(true)}
               style={({ pressed }) => [
@@ -550,34 +451,24 @@ export default function AccountScreen() {
               ]}
             >
               <View style={styles.rowLeft}>
-                <View
-                  style={[
-                    styles.rowIconCircle,
-                    { backgroundColor: colors.dangerSoft },
-                  ]}
-                >
-                  <Ionicons
-                    name="log-out-outline"
-                    size={18}
-                    color={colors.statusUrgent}
-                  />
+                <View style={[styles.rowIconCircle, { backgroundColor: colors.dangerSoft }]}>
+                  <Ionicons name="log-out-outline" size={18} color={colors.statusUrgent} />
                 </View>
-                <Text style={[styles.rowTitle, { color: colors.statusUrgent, fontWeight: "800" }]}>
-                  Sign Out
+                <Text variant="bodyStrong" color="danger">
+                  {isGuest ? "Sign in / Leave guest mode" : "Sign out"}
                 </Text>
               </View>
             </Pressable>
           </View>
         </View>
 
-        {/* App Version Footer */}
         <View style={styles.versionFooter}>
-          <Text style={styles.versionText}>FRESCO v1.0.0</Text>
-          <Text style={styles.copyrightText}>© 2026 Fresco Inc. All rights reserved.</Text>
+          <Text variant="micro" color="tertiary">
+            Fresco v1.0.0
+          </Text>
         </View>
       </ScrollView>
 
-      {/* Sign Out Confirmation Modal Dialog */}
       <Modal
         visible={signOutModalVisible}
         transparent
@@ -601,25 +492,17 @@ export default function AccountScreen() {
               },
             ]}
           >
-            {/* Red Circle Icon */}
-            <View
-              style={[
-                styles.dialogIconCircle,
-                { backgroundColor: colors.dangerSoft },
-              ]}
-            >
+            <View style={[styles.dialogIconCircle, { backgroundColor: colors.dangerSoft }]}>
               <Ionicons name="log-out" size={24} color={colors.statusUrgent} />
             </View>
 
-            <Text variant="headline" style={styles.dialogTitle}>
-              Sign Out?
+            <Text variant="headline" color="primary" style={styles.dialogTitle}>
+              {isGuest ? "Leave guest mode?" : "Sign out?"}
             </Text>
-            <Text
-              variant="body"
-              color="secondary"
-              style={styles.dialogBody}
-            >
-              Are you sure you want to sign out of your FRESCO account?
+            <Text variant="body" color="secondary" align="center" style={styles.dialogBody}>
+              {isGuest
+                ? "Leaving guest mode clears items saved only on this device so you can sign in or start fresh."
+                : "Are you sure you want to sign out of your Fresco account?"}
             </Text>
 
             <View style={styles.dialogButtonsRow}>
@@ -627,20 +510,19 @@ export default function AccountScreen() {
                 label="Cancel"
                 variant="secondary"
                 onPress={() => setSignOutModalVisible(false)}
-                style={styles.dialogCancelBtn}
+                style={styles.dialogActionBtn}
               />
               <Button
-                label="Sign Out"
+                label={isGuest ? "Continue" : "Sign Out"}
                 variant="danger"
                 onPress={handleSignOutConfirm}
-                style={styles.dialogConfirmBtn}
+                style={styles.dialogActionBtn}
               />
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Settings Toast Confirmation */}
       <Toast
         visible={toastMessage != null}
         message={toastMessage || ""}
@@ -659,11 +541,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 16,
   },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: "900",
-    letterSpacing: -0.6,
-  },
   scrollContent: {
     paddingBottom: 48,
   },
@@ -676,45 +553,26 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   avatarCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
-  },
-  avatarInitials: {
-    color: "#FFFFFF",
-    fontSize: 20,
-    fontWeight: "900",
-    letterSpacing: 0.5,
   },
   userDetails: {
     flex: 1,
   },
-  userName: {
-    fontSize: 17,
-    fontWeight: "800",
-    marginBottom: 2,
-  },
-  userEmail: {
-    fontSize: 13,
-    color: "#545454",
-    fontWeight: "500",
+  userSub: {
+    marginTop: 2,
     marginBottom: 6,
   },
-  editProfileText: {
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1,
+  alertsLink: {
+    fontWeight: "700",
   },
   sectionContainer: {
     marginBottom: 24,
   },
   sectionHeader: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#757575",
-    letterSpacing: 1,
     marginBottom: 8,
     paddingHorizontal: 4,
   },
@@ -726,8 +584,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    minHeight: 54,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   rowLeft: {
@@ -742,36 +601,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  rowTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
   rowRight: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
-  valueText: {
-    fontSize: 14,
-    color: "#545454",
-    fontWeight: "600",
-  },
   versionFooter: {
     alignItems: "center",
-    marginTop: 16,
+    marginTop: 8,
     paddingBottom: 24,
-  },
-  versionText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#757575",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-  },
-  copyrightText: {
-    fontSize: 11,
-    color: "#A6A6A6",
-    marginTop: 4,
   },
   modalOverlay: {
     flex: 1,
@@ -797,14 +635,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   dialogTitle: {
-    fontSize: 20,
-    fontWeight: "800",
     marginBottom: 8,
   },
   dialogBody: {
-    fontSize: 14,
-    textAlign: "center",
-    lineHeight: 20,
     marginBottom: 24,
   },
   dialogButtonsRow: {
@@ -812,11 +645,7 @@ const styles = StyleSheet.create({
     gap: 12,
     width: "100%",
   },
-  dialogCancelBtn: {
-    flex: 1,
-    height: 48,
-  },
-  dialogConfirmBtn: {
+  dialogActionBtn: {
     flex: 1,
     height: 48,
   },
