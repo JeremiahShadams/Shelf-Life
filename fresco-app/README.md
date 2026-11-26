@@ -87,4 +87,8 @@ Always render the live `days_left` from the API — never `estimated_days_remain
 
 The mobile app talks to the existing FastAPI backend (`../backend`). Point it at a server with `EXPO_PUBLIC_API_URL`; otherwise the app derives the host from Expo's dev-server LAN address and uses port 8000.
 
+Start the backend so it listens on the LAN (`python -m uvicorn app.main:app --host 0.0.0.0 --port 8000`, or `backend/start.bat`), then confirm the phone can open `http://<your-computer-LAN-IP>:8000/health` in its browser. If that fails, allow Python/port 8000 through the firewall.
+
+> **Tunnel URLs expire.** If `EXPO_PUBLIC_API_URL` points at a temporary tunnel (ngrok, loca.lt, Cloudflare quick tunnels), restarting the tunnel changes the URL and every scan fails with "Can't reach server" until you update the value and restart Expo. Prefer the LAN address when the phone and computer share a Wi-Fi network.
+
 Scanning stays unavailable (HTTP 503) until the Keras model is exported, but the rest of the loop — auth, manual add, inventory, alerts, ideas — works without it. In Guest mode the inventory is kept locally, so the demo needs no account or server writes.
