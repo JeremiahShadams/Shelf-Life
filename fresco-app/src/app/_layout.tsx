@@ -1,30 +1,35 @@
 /**
  * Fresco — Root layout
- * QueryClient for all server state, Stack over the tab shell, and a silent
- * auth `hydrate()` on boot so a cold start restores the session without
- * flashing a login screen. Native headers stay off app-wide — screens draw
- * their own titles in content.
+ * Loads Fraunces display typography, holds expo-splash-screen until both fonts
+ * and persisted auth state resolve, and renders a branded cold-start view
+ * instead of an unbranded spinner void.
  */
 
 import { useEffect, useState } from "react";
+import { StyleSheet, View } from "react-native";
+import {
+  Fraunces_700Bold,
+  Fraunces_800ExtraBold,
+  Fraunces_900Black,
+  useFonts,
+} from "@expo-google-fonts/fraunces";
+import { Ionicons } from "@expo/vector-icons";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
-import { Loading } from "../components/ui";
+import * as SplashScreen from "expo-splash-screen";
+import { Text } from "../components/ui";
 import { useAuth } from "../stores/auth";
 import { useTheme } from "../../theme";
 import type { AuthStatus } from "../stores/auth";
 
-/**
- * Route guard, called from the root layout (the documented Expo Router
- * pattern). Runs only after `hydrate()` settles — "idle" means we don't know
- * yet, and redirecting then would bounce a signed-in user to login.
- */
-function useProtectedRoute(status: AuthStatus) {
+void SplashScreen.preventAutoHideAsync();
+
+function useProtectedRoute(status: AuthStatus, ready: boolean) {
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "idle") return;
+    if (!ready || status === "idle") return;
 
     const inAuthGroup = segments[0] === "(auth)";
     if (status === "anon" && !inAuthGroup) {
@@ -32,7 +37,33 @@ function useProtectedRoute(status: AuthStatus) {
     } else if (status === "authed" && inAuthGroup) {
       router.replace("/");
     }
-  }, [status, segments, router]);
+  }, [ready, status, segments, router]);
+}
+
+function BrandedBootScreen() {
+  const { colors, radius } = useTheme();
+  return (
+    <View style={[styles.bootContainer, { backgroundColor: colors.background }]}>
+      <View
+        style={[
+          styles.emblem,
+          {
+            backgroundColor: colors.secondaryAction,
+            borderRadius: radius.full,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <Ionicons name="leaf" size={32} color={colors.primary} />
+      </View>
+      <Text variant="wordmark" color="brand" style={styles.bootWordmark}>
+        fresco
+      </Text>
+      <Text variant="caption" color="secondary">
+        Honest produce shelf life
+      </Text>
+    </View>
+  );
 }
 
 export default function RootLayout() {
@@ -41,24 +72,35 @@ export default function RootLayout() {
   const status = useAuth((s) => s.status);
   const theme = useTheme();
 
-  useProtectedRoute(status);
+  const [fontsLoaded, fontError] = useFonts({
+    Fraunces_700Bold,
+    Fraunces_800ExtraBold,
+    Fraunces_900Black,
+  });
+
+  const fontsReady = fontsLoaded || Boolean(fontError);
+  const appReady = fontsReady && status !== "idle";
+
+  useProtectedRoute(status, appReady);
 
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
 
-  // A signed-out session must not leave another user's inventory, alerts, or
-  // profile data sitting in the cache for the next login to flash.
+  useEffect(() => {
+    if (appReady) {
+      void SplashScreen.hideAsync();
+    }
+  }, [appReady]);
+
   useEffect(() => {
     if (status === "anon") queryClient.clear();
   }, [status, queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      {status === "idle" ? (
-        // Unknown session → hold the splash instead of rendering a route
-        // that will immediately redirect.
-        <Loading fullScreen style={{ backgroundColor: theme.colors.background }} />
+      {!appReady ? (
+        <BrandedBootScreen />
       ) : (
         <Stack
           screenOptions={{
@@ -77,3 +119,23 @@ export default function RootLayout() {
     </QueryClientProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  bootContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  emblem: {
+    width: 72,
+    height: 72,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+  bootWordmark: {
+    marginBottom: 4,
+  },
+});
