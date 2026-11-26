@@ -29,7 +29,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function LoginScreen() {
   const theme = useTheme();
-  const { colors, spacing, layout, radius } = theme;
+  const { colors, layout, radius } = theme;
   const login = useAuth((s) => s.login);
   const loginAsGuest = useAuth((s) => s.loginAsGuest);
 
@@ -217,6 +217,9 @@ export default function LoginScreen() {
               onPress={() => void handleGuestLogin()}
               style={styles.guestBtn}
             />
+            <Text variant="micro" color="tertiary" align="center" style={{ marginTop: 8 }}>
+              Guest items save locally on this device only and clear on sign-out.
+            </Text>
 
             {/* Footer Sign Up Link */}
             <View style={styles.footerRow}>
