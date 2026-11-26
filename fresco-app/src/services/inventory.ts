@@ -1,14 +1,17 @@
 /**
  * Fresco — Inventory service
- * Wraps /api/inventory. All calls need a bearer token (user-scoped data).
- *
- * Guest mode ("Explore as Guest") has no server account, so it keeps a
- * small in-memory inventory instead of firing 401s. The item shape and the
- * live days/status math mirror the backend so screens behave identically.
+ * Wraps /api/inventory for signed-in accounts, and persists guest-mode inventory
+ * locally via AsyncStorage so closing the app never wipes tracked produce.
+ * Automatically schedules/cancels local expiry notifications on item changes.
  */
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api, ApiError } from "./api";
 import { getFruit } from "./fruits";
+import {
+  cancelItemExpiryReminder,
+  scheduleItemExpiryReminder,
+} from "./localNotifications";
 import type {
   InventoryItem,
   InventoryItemCreate,
@@ -20,10 +23,47 @@ import type {
 } from "../types/api";
 
 const GUEST_TOKEN = "guest_demo_token";
+const GUEST_STORAGE_KEY = "fresco.guest.inventory.v1";
 const DAY_MS = 86_400_000;
 
 let guestItems: InventoryItem[] = [];
 let guestNextId = 1;
+let guestHydrated = false;
+
+async function ensureGuestHydrated(): Promise<void> {
+  if (guestHydrated) return;
+  try {
+    const raw = await AsyncStorage.getItem(GUEST_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as { items?: InventoryItem[]; nextId?: number };
+      if (Array.isArray(parsed.items)) {
+        guestItems = parsed.items;
+        const maxId = guestItems.reduce((acc, it) => Math.max(acc, it.id), 0);
+        guestNextId = Math.max(parsed.nextId ?? 1, maxId + 1);
+      }
+    }
+  } catch {
+    // ignore corrupted local cache
+  } finally {
+    guestHydrated = true;
+  }
+}
+
+async function persistGuestState(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(
+      GUEST_STORAGE_KEY,
+      JSON.stringify({ items: guestItems, nextId: guestNextId }),
+    );
+  } catch {
+    // ignore write failures
+  }
+}
+
+export async function getGuestItemsSnapshot(): Promise<InventoryItem[]> {
+  await ensureGuestHydrated();
+  return guestItems.filter((i) => !i.is_consumed).map(withLiveState);
+}
 
 function computeDaysLeft(estimatedExpiry: string): number {
   return (new Date(estimatedExpiry).getTime() - Date.now()) / DAY_MS;
@@ -36,7 +76,6 @@ function computeStatus(daysLeft: number): ItemStatus {
   return "FRESH";
 }
 
-/** Recompute the live fields the same way the API does at read time. */
 function withLiveState(item: InventoryItem): InventoryItem {
   const daysLeft = computeDaysLeft(item.estimated_expiry);
   return {
@@ -63,32 +102,41 @@ function guestList(): InventoryListResponse {
   };
 }
 
-export function listInventory(token: string): Promise<InventoryListResponse> {
-  if (token === GUEST_TOKEN) return Promise.resolve(guestList());
-  return api.get<InventoryListResponse>("/api/inventory/", token).catch((err) => {
+export async function listInventory(token: string): Promise<InventoryListResponse> {
+  await ensureGuestHydrated();
+  if (token === GUEST_TOKEN) return guestList();
+
+  try {
+    return await api.get<InventoryListResponse>("/api/inventory/", token);
+  } catch (err) {
     if (err instanceof ApiError && err.status === 0) {
       return guestList();
     }
     throw err;
-  });
+  }
 }
 
-export function getInventoryItem(token: string, itemId: number): Promise<InventoryItem> {
+export async function getInventoryItem(token: string, itemId: number): Promise<InventoryItem> {
+  await ensureGuestHydrated();
   if (token === GUEST_TOKEN) {
     const item = guestItems.find((i) => i.id === itemId);
-    if (item == null) return Promise.reject(new Error("Inventory item not found"));
-    return Promise.resolve(withLiveState(item));
+    if (item == null) throw new Error("Inventory item not found");
+    return withLiveState(item);
   }
-  return api.get<InventoryItem>(`/api/inventory/${itemId}`, token).catch((err) => {
+
+  try {
+    return await api.get<InventoryItem>(`/api/inventory/${itemId}`, token);
+  } catch (err) {
     if (err instanceof ApiError && err.status === 0) {
       const item = guestItems.find((i) => i.id === itemId);
       if (item != null) return withLiveState(item);
     }
     throw err;
-  });
+  }
 }
 
 async function addGuestItem(body: InventoryItemCreate): Promise<InventoryItem> {
+  await ensureGuestHydrated();
   const fruit = await getFruit(body.fruit_id);
   const storage = body.storage_method ?? "fridge";
   const days = shelfLifeDays(fruit, storage);
@@ -114,7 +162,10 @@ async function addGuestItem(body: InventoryItemCreate): Promise<InventoryItem> {
   };
 
   guestItems = [item, ...guestItems];
-  return withLiveState(item);
+  await persistGuestState();
+  const live = withLiveState(item);
+  void scheduleItemExpiryReminder(live);
+  return live;
 }
 
 export async function addToInventory(
@@ -123,10 +174,11 @@ export async function addToInventory(
 ): Promise<InventoryItem> {
   if (token !== GUEST_TOKEN) {
     try {
-      return await api.post<InventoryItem>("/api/inventory/", body, token);
+      const created = await api.post<InventoryItem>("/api/inventory/", body, token);
+      void scheduleItemExpiryReminder(created);
+      return created;
     } catch (err) {
       if (err instanceof ApiError && err.status === 0) {
-        console.log("[addToInventory] Server unreachable, caching in local inventory.");
         return addGuestItem(body);
       }
       throw err;
@@ -141,8 +193,22 @@ export async function updateInventoryItem(
   itemId: number,
   body: InventoryItemUpdate,
 ): Promise<InventoryItem> {
+  await ensureGuestHydrated();
   if (token !== GUEST_TOKEN) {
-    return api.patch<InventoryItem>(`/api/inventory/${itemId}`, body, token);
+    try {
+      const synced = await api.patch<InventoryItem>(`/api/inventory/${itemId}`, body, token);
+      if (body.is_consumed) {
+        void cancelItemExpiryReminder(itemId);
+      } else if (body.storage_method != null) {
+        void scheduleItemExpiryReminder(synced);
+      }
+      return synced;
+    } catch (err) {
+      if (!(err instanceof ApiError && err.status === 0)) {
+        throw err;
+      }
+      // Fall through to local cache update if offline
+    }
   }
 
   const index = guestItems.findIndex((i) => i.id === itemId);
@@ -156,7 +222,6 @@ export async function updateInventoryItem(
     is_consumed: body.is_consumed ?? current.is_consumed,
   };
 
-  // Storage switch preserves elapsed time, matching the backend rule.
   if (body.storage_method != null && body.storage_method !== current.storage_method) {
     const now = Date.now();
     const expiry = new Date(current.estimated_expiry).getTime();
@@ -175,19 +240,47 @@ export async function updateInventoryItem(
   }
 
   guestItems[index] = updated;
-  return withLiveState(updated);
-}
+  await persistGuestState();
 
-export function deleteInventoryItem(token: string, itemId: number): Promise<MessageResponse> {
-  if (token === GUEST_TOKEN) {
-    guestItems = guestItems.filter((i) => i.id !== itemId);
-    return Promise.resolve({ message: "Inventory item deleted", success: true });
+  const live = withLiveState(updated);
+  if (live.is_consumed) {
+    void cancelItemExpiryReminder(itemId);
+  } else if (body.storage_method != null) {
+    void scheduleItemExpiryReminder(live);
   }
-  return api.delete<MessageResponse>(`/api/inventory/${itemId}`, token);
+  return live;
 }
 
-/** Reset guest inventory — call on logout so ephemeral data doesn't leak. */
-export function clearGuestInventory(): void {
+export async function deleteInventoryItem(token: string, itemId: number): Promise<MessageResponse> {
+  await ensureGuestHydrated();
+  void cancelItemExpiryReminder(itemId);
+
+  if (token !== GUEST_TOKEN) {
+    try {
+      return await api.delete<MessageResponse>(`/api/inventory/${itemId}`, token);
+    } catch (err) {
+      if (!(err instanceof ApiError && err.status === 0)) {
+        throw err;
+      }
+    }
+  }
+
+  guestItems = guestItems.filter((i) => i.id !== itemId);
+  await persistGuestState();
+  return { message: "Removed", success: true };
+}
+
+export async function clearGuestInventory(): Promise<void> {
+  const prev = guestItems;
   guestItems = [];
   guestNextId = 1;
+  guestHydrated = true;
+  for (const item of prev) {
+    void cancelItemExpiryReminder(item.id);
+  }
+  try {
+    await AsyncStorage.removeItem(GUEST_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
 }

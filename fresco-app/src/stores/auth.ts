@@ -178,7 +178,7 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    clearGuestInventory();
+    await clearGuestInventory();
     await clearPersisted();
     set({ status: "anon", token: null, user: null });
   },
@@ -210,7 +210,7 @@ export const useAuth = create<AuthState>((set, get) => ({
         // Proceed with local cleanup
       }
     }
-    clearGuestInventory();
+    await clearGuestInventory();
     await clearPersisted();
     set({ status: "anon", token: null, user: null });
   },
