@@ -1,20 +1,15 @@
 /**
  * FRESCO — Scan (Home Screen)
  * High-performance, full-viewport produce scanner.
- * - Tall, immersive camera viewfinder with rounded corners and framing brackets
- * - Clean tactile bottom controls: Gallery Photo Picker | 78px Shutter | Flashlight
- * - Real-time progressive 3-stage ProcessingOverlay with organic green pulsing ring
- * - Resilient capture and scanning: Non-blocking, instant response, auto-recovering
+ * - Tall, immersive camera viewfinder on organic linen canvas
+ * - Clean tactile bottom controls: Gallery | 78px Shutter (with haptic feedback) | Torch
+ * - Resizes captures to 512px before upload to protect mobile data
+ * - AbortController wired directly to ProcessingOverlay.onCancel so users are never trapped
+ * - >= 44x44pt accessible touch targets on every button
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Image,
-  Linking,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Image, Linking, Pressable, StyleSheet, View } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
@@ -24,6 +19,7 @@ import { useTheme } from "../../../theme";
 import { Button, ErrorState, Loading, ProcessingOverlay, Text } from "../../components/ui";
 import { useHealth } from "../../hooks/useHealth";
 import { classifyScanError, scanImage, type ScanAsset } from "../../services/scan";
+import { hapticMedium, hapticSelection } from "../../utils/haptics";
 
 function fileName(uri: string, fallback: string): string {
   const tail = uri.split("/").pop();
@@ -36,9 +32,8 @@ export default function ScanScreen() {
 
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
+  const scanAbortRef = useRef<AbortController | null>(null);
 
-  // Tell the user up front if the backend or model is unavailable, instead of
-  // letting them take a photo that cannot be analyzed.
   const health = useHealth();
   const serverUnreachable = health.isError;
   const modelUnavailable = health.data?.ai_scanning === "unavailable";
@@ -50,37 +45,47 @@ export default function ScanScreen() {
   const [error, setError] = useState<string | null>(null);
   const [modelMissing, setModelMissing] = useState(false);
 
-  // Review asset if photo captured
   const [reviewAsset, setReviewAsset] = useState<ScanAsset | null>(null);
-  // Last attempted asset, kept so a failed scan can be retried without recapturing
   const [lastAsset, setLastAsset] = useState<ScanAsset | null>(null);
 
-  // Automatically request camera permission on mount if available to ask
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) {
       void requestPermission();
     }
   }, [permission, requestPermission]);
 
-  // Clean native camera instantiation whenever tab is focused
   useFocusEffect(
     useCallback(() => {
       setFocused(true);
       setCameraKey((prev) => prev + 1);
       return () => {
         setFocused(false);
+        scanAbortRef.current?.abort();
       };
     }, []),
   );
 
+  function handleCancelScan() {
+    scanAbortRef.current?.abort();
+    scanAbortRef.current = null;
+    setBusy(false);
+    setReviewAsset(null);
+  }
+
   async function upload(asset: ScanAsset) {
+    scanAbortRef.current?.abort();
+    const controller = new AbortController();
+    scanAbortRef.current = controller;
+
     setBusy(true);
     setError(null);
     setModelMissing(false);
     setLastAsset(asset);
 
     try {
-      const result = await scanImage(asset);
+      const result = await scanImage(asset, controller.signal);
+      if (controller.signal.aborted) return;
+
       setReviewAsset(null);
       setLastAsset(null);
       router.push({
@@ -89,25 +94,23 @@ export default function ScanScreen() {
       });
     } catch (err) {
       const kind = classifyScanError(err);
-      if (kind === "model_unavailable") {
+      if (kind === "cancelled") {
+        // Explicit user cancellation: return cleanly to live camera
+        return;
+      } else if (kind === "model_unavailable") {
         setModelMissing(true);
       } else if (kind === "not_recognized") {
-        setError(
-          "We couldn't identify this produce. Try a single item, filling the frame in good light.",
-        );
+        setError("We couldn't identify that item. Center one fruit in bright light and try again.");
       } else if (kind === "offline") {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Can't reach the Fresco server. Check your connection and try again.",
-        );
+        setError("Couldn't reach Fresco — check your connection and try again.");
       } else {
-        setError(
-          err instanceof Error ? err.message : "Couldn't scan produce. Please try again.",
-        );
+        setError("Couldn't analyze that photo. Hold steady and try again.");
       }
       setReviewAsset(null);
     } finally {
+      if (scanAbortRef.current === controller) {
+        scanAbortRef.current = null;
+      }
       setBusy(false);
     }
   }
@@ -120,6 +123,7 @@ export default function ScanScreen() {
 
   async function handleCapture() {
     if (!cameraRef.current || busy) return;
+    void hapticMedium();
     try {
       setBusy(true);
       setError(null);
@@ -128,7 +132,7 @@ export default function ScanScreen() {
         skipProcessing: false,
       });
       if (!photo || !photo.uri) {
-        setError("Couldn't capture photo. Please tap the shutter again.");
+        setError("Couldn't capture photo. Tap the shutter to try again.");
         setBusy(false);
         return;
       }
@@ -141,7 +145,7 @@ export default function ScanScreen() {
       await upload(asset);
     } catch (err) {
       console.warn("Capture error:", err);
-      setError("Couldn't capture photo. Please tap shutter again.");
+      setError("Couldn't take photo. Tap the shutter again.");
       setReviewAsset(null);
       setBusy(false);
     }
@@ -153,10 +157,18 @@ export default function ScanScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         quality: 0.85,
+        preferredAssetRepresentationMode:
+          ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
       });
       if (result.canceled || !result.assets[0]) return;
 
       const picked = result.assets[0];
+      const pickedMime = (picked.mimeType ?? "").toLowerCase();
+      if (pickedMime === "image/heic" || pickedMime === "image/heif" || /\.hei[cf]$/i.test(picked.uri)) {
+        setError("HEIC photos aren't supported. Choose a JPEG/PNG or use the in-app camera.");
+        return;
+      }
+
       const asset: ScanAsset = {
         uri: picked.uri,
         name: picked.fileName ?? fileName(picked.uri, "scan.jpg"),
@@ -165,17 +177,15 @@ export default function ScanScreen() {
       setReviewAsset(asset);
       await upload(asset);
     } catch {
-      setError("Couldn't open photo library.");
+      setError("Couldn't open your photo library.");
       setReviewAsset(null);
     }
   }
 
-  // Permission still loading
   if (permission == null) {
     return <Loading fullScreen style={{ backgroundColor: colors.background }} />;
   }
 
-  // Permission denied state
   if (!permission.granted) {
     return (
       <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -183,11 +193,11 @@ export default function ScanScreen() {
           <View style={[styles.permissionIconCircle, { backgroundColor: colors.accentSoft }]}>
             <Ionicons name="camera" size={40} color={colors.primary} />
           </View>
-          <Text variant="largeTitle" align="center" style={styles.permissionTitle}>
-            Camera Access
+          <Text variant="largeTitle" color="primary" align="center" style={styles.permissionTitle}>
+            Camera access
           </Text>
           <Text variant="body" color="secondary" align="center" style={styles.permissionBody}>
-            Fresco uses your camera to identify fruit varieties and estimate truthful shelf life.
+            Fresco uses your camera to identify produce and estimate how many fresh days remain.
           </Text>
 
           <Button
@@ -213,20 +223,19 @@ export default function ScanScreen() {
     );
   }
 
-  // Model not deployed state
   if (modelMissing) {
     return (
       <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]}>
         <ErrorState
           full
-          title="AI Scanner Offline"
-          message="The fruit classifier model artifact is currently being loaded. You can still add items manually and track expiration."
+          title="Scanner temporarily offline"
+          message="The AI produce model isn't available right now. You can add your fruit by name and track expiry."
           retryLabel="Add Item Manually"
           onRetry={() => router.push("/add-item")}
         />
         <View style={{ paddingHorizontal: layout.screenPadding, paddingBottom: spacing.l }}>
           <Button
-            label="Try Another Photo"
+            label="Try another photo"
             variant="ghost"
             block
             onPress={() => {
@@ -240,27 +249,22 @@ export default function ScanScreen() {
   }
 
   return (
-    <SafeAreaView
-      edges={["top"]}
-      style={[styles.screen, { backgroundColor: colors.background }]}
-    >
+    <SafeAreaView edges={["top"]} style={[styles.screen, { backgroundColor: colors.background }]}>
       {/* Top Header */}
       <View style={[styles.header, { paddingHorizontal: layout.screenPadding }]}>
-        <View>
-          <Text variant="largeTitle" style={[styles.headerTitle, { color: colors.textPrimary }]}>
+        <View style={styles.headerTextCol}>
+          <Text variant="largeTitle" color="brand">
             Scan
           </Text>
-          <Text variant="caption" style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+          <Text variant="caption" color="secondary" style={styles.headerSubtitle}>
             Point at one piece of produce.
           </Text>
         </View>
 
-        {/* Quick Add Fruit Manual Shortcut */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Add fruit by name"
           onPress={() => router.push("/add-item")}
-          hitSlop={8}
           style={({ pressed }) => [
             styles.manualAddButton,
             {
@@ -271,7 +275,7 @@ export default function ScanScreen() {
           ]}
         >
           <Ionicons name="add" size={20} color={colors.primary} />
-          <Text variant="micro" style={[styles.manualAddText, { color: colors.primary }]}>
+          <Text variant="caption" color="brand" style={styles.manualAddText}>
             Manual
           </Text>
         </Pressable>
@@ -290,14 +294,19 @@ export default function ScanScreen() {
           ]}
         >
           <Ionicons name="cloud-offline-outline" size={18} color={colors.accent} />
-          <Text variant="caption" style={[styles.errorBannerText, { color: colors.textPrimary }]}>
+          <Text variant="caption" color="primary" style={styles.errorBannerText}>
             {serverUnreachable
-              ? "Can't reach the Fresco server. Scans will fail until it's back online."
-              : "The AI model isn't loaded on the server. You can still add items manually."}
+              ? "Fresco scanner is offline. Check your connection to scan produce."
+              : "Scanner model isn't loaded right now. Use Manual add above."}
           </Text>
           {serverUnreachable && (
-            <Pressable onPress={() => void health.refetch()} hitSlop={8}>
-              <Text variant="caption" style={{ color: colors.accent, fontWeight: "700" }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Retry server check"
+              onPress={() => void health.refetch()}
+              style={styles.bannerActionHit}
+            >
+              <Text variant="caption" color="accent" style={styles.bannerActionText}>
                 Retry
               </Text>
             </Pressable>
@@ -305,7 +314,7 @@ export default function ScanScreen() {
         </View>
       )}
 
-      {/* Error Banner if error occurred */}
+      {/* Error Banner */}
       {error != null && (
         <View
           style={[
@@ -318,18 +327,28 @@ export default function ScanScreen() {
           ]}
         >
           <Ionicons name="alert-circle" size={18} color={colors.danger} />
-          <Text variant="caption" style={[styles.errorBannerText, { color: colors.danger }]}>
+          <Text variant="caption" color="danger" style={styles.errorBannerText}>
             {error}
           </Text>
           {lastAsset != null && !busy && (
-            <Pressable onPress={retryScan} hitSlop={8}>
-              <Text variant="caption" style={{ color: colors.danger, fontWeight: "700" }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Retry scan"
+              onPress={retryScan}
+              style={styles.bannerActionHit}
+            >
+              <Text variant="caption" color="danger" style={styles.bannerActionText}>
                 Retry
               </Text>
             </Pressable>
           )}
-          <Pressable onPress={() => setError(null)} hitSlop={8}>
-            <Ionicons name="close" size={16} color={colors.danger} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss error"
+            onPress={() => setError(null)}
+            style={styles.bannerCloseHit}
+          >
+            <Ionicons name="close" size={18} color={colors.danger} />
           </Pressable>
         </View>
       )}
@@ -340,28 +359,25 @@ export default function ScanScreen() {
           styles.viewfinderCard,
           {
             marginHorizontal: layout.screenPadding,
-            borderRadius: radius.sheet ?? 28,
+            borderRadius: radius.sheet,
             backgroundColor: colors.surfacePressed,
             borderColor: colors.border,
           },
           elevation.card,
         ]}
       >
-        {/* Camera Live Preview or Captured Snapshot Review */}
         {reviewAsset != null ? (
           <View style={StyleSheet.absoluteFill}>
-            <Image
-              source={{ uri: reviewAsset.uri }}
-              style={StyleSheet.absoluteFill}
-              resizeMode="cover"
-            />
+            <Image source={{ uri: reviewAsset.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
             {!busy && (
               <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Retake photo"
                 onPress={() => setReviewAsset(null)}
                 style={styles.retakeButton}
               >
-                <Ionicons name="refresh" size={16} color="#FFFFFF" />
-                <Text variant="micro" style={{ color: "#FFFFFF", fontWeight: "700" }}>
+                <Ionicons name="refresh" size={16} color={colors.primaryText} />
+                <Text variant="caption" color="inverse">
                   Retake
                 </Text>
               </Pressable>
@@ -377,14 +393,12 @@ export default function ScanScreen() {
               mode="picture"
               enableTorch={torch}
               onMountError={() => {
-                console.warn("Camera mount error, re-trying...");
                 setCameraKey((k) => k + 1);
               }}
             />
           )
         )}
 
-        {/* Framing Guide Brackets (Organic produce focus) */}
         <View style={styles.framingOverlay} pointerEvents="none">
           <View style={[styles.bracket, styles.bracketTopLeft]} />
           <View style={[styles.bracket, styles.bracketTopRight]} />
@@ -393,9 +407,8 @@ export default function ScanScreen() {
         </View>
       </View>
 
-      {/* Bottom Controls Bar (Placed cleanly below viewfinder) */}
+      {/* Bottom Controls Bar */}
       <View style={[styles.controlsBar, { paddingHorizontal: layout.screenPadding }]}>
-        {/* Gallery / Library Picker */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Choose from gallery"
@@ -413,7 +426,6 @@ export default function ScanScreen() {
           <Ionicons name="images-outline" size={24} color={colors.textPrimary} />
         </Pressable>
 
-        {/* Large 78px Primary Shutter Button - Deep Forest ring with Carrot Orange capture core */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Take photo of produce"
@@ -429,19 +441,16 @@ export default function ScanScreen() {
             },
           ]}
         >
-          <View
-            style={[
-              styles.shutterInner,
-              { backgroundColor: colors.accent },
-            ]}
-          />
+          <View style={[styles.shutterInner, { backgroundColor: colors.accent }]} />
         </Pressable>
 
-        {/* Flashlight Torch Toggle */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={torch ? "Turn off torch" : "Turn on torch"}
-          onPress={() => setTorch((v) => !v)}
+          onPress={() => {
+            void hapticSelection();
+            setTorch((v) => !v);
+          }}
           disabled={busy}
           style={({ pressed }) => [
             styles.sideCircleButton,
@@ -460,17 +469,11 @@ export default function ScanScreen() {
         </Pressable>
       </View>
 
-      {/* Bottom Guidance Tagline */}
-      <Text
-        variant="micro"
-        align="center"
-        style={[styles.bottomHint, { color: colors.textTertiary }]}
-      >
-        Hold steady · one item at a time
+      <Text variant="micro" color="tertiary" align="center" style={styles.bottomHint}>
+        Hold steady — center one produce item
       </Text>
 
-      {/* Progressive 3-Stage AI Processing Overlay */}
-      <ProcessingOverlay visible={busy} />
+      <ProcessingOverlay visible={busy} onCancel={handleCancelScan} />
     </SafeAreaView>
   );
 }
@@ -486,20 +489,19 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 12,
   },
-  headerTitle: {
-    fontWeight: "800",
-    letterSpacing: -0.5,
+  headerTextCol: {
+    flex: 1,
+    paddingRight: 12,
   },
   headerSubtitle: {
     marginTop: 2,
-    fontSize: 14,
   },
   manualAddButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
+    minHeight: 44,
+    paddingHorizontal: 14,
+    borderRadius: 22,
     borderWidth: 1,
     gap: 4,
   },
@@ -511,14 +513,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingLeft: 12,
+    paddingRight: 4,
+    paddingVertical: 6,
     marginBottom: 8,
     gap: 8,
   },
   errorBannerText: {
     flex: 1,
-    fontWeight: "500",
+  },
+  bannerActionHit: {
+    minHeight: 44,
+    minWidth: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+  },
+  bannerActionText: {
+    fontWeight: "700",
+  },
+  bannerCloseHit: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
   viewfinderCard: {
     flex: 1,
@@ -528,14 +546,14 @@ const styles = StyleSheet.create({
   },
   retakeButton: {
     position: "absolute",
-    top: 16,
-    left: 16,
+    top: 14,
+    left: 14,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.65)",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 18,
+    backgroundColor: "rgba(26, 36, 27, 0.72)",
+    paddingHorizontal: 14,
+    borderRadius: 22,
     gap: 6,
   },
   framingOverlay: {
@@ -606,8 +624,6 @@ const styles = StyleSheet.create({
   },
   bottomHint: {
     marginBottom: 12,
-    fontSize: 12,
-    fontWeight: "500",
   },
   permissionContainer: {
     flex: 1,
