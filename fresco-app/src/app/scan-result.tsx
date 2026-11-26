@@ -1,56 +1,41 @@
 /**
- * FRESCO — Scan Results Screen
- * Matches SuperDesign draft (d4a0ddc2-987c-4be4-a79c-70f8c9c88c7b):
- * - Floating translucent back button over 240px hero banner
- * - Overlapping elevated verdict card (-mt-14) with status pill & 72px urgency day number
- * - Classification, freshness, and overall confidence metrics
- * - Shelf life comparison table (Counter, Fridge Recommended, Freezer)
- * - Storage tip card with lightbulb icon
- * - Ethylene sensitivity alert card
- * - Fixed dual bottom action bar: [Scan Again] + [Add to Inventory]
- * - Duplicate item dialog integration
+ * FRESCO — Scan Result Screen (Verdict Ledger)
+ * - Dynamic "Best choice" storage highlight strictly matching result.best_storage
+ *   (Counter / Fridge / Freezer — never hardcoded to Fridge!)
+ * - Visible <60% confidence gate prompting users to retake instead of trusting guesses
+ * - Plain-language ethylene gas explainers
+ * - Shared offline-safe image resolver (zero external Unsplash dependency)
+ * - Haptic confirmation on save & >= 44x44pt navigation hit targets
  */
 
 import React, { useMemo, useState } from "react";
-import {
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../theme";
-import { Button, ErrorState, Text } from "../components/ui";
+import { Badge, Button, ErrorState, Text } from "../components/ui";
 import { DuplicateItemDialog } from "../components/fridge";
 import {
   useAddToInventory,
   useInventory,
   useUpdateInventoryItem,
 } from "../hooks/useInventory";
-import { API_URL } from "../services/api";
+import { hapticLight, hapticSuccess } from "../utils/haptics";
+import { resolveItemImageSource } from "../utils/images";
 import type { InventoryItem, ScanResult, StorageMethod } from "../types";
 
-function resolveItemImage(imagePath: string | null | undefined): string {
-  if (!imagePath) {
-    return "https://images.unsplash.com/photo-1619566636858-adf3ef46400b?auto=format&fit=crop&w=800&q=80";
-  }
-  if (
-    imagePath.startsWith("http://") ||
-    imagePath.startsWith("https://") ||
-    imagePath.startsWith("file://")
-  ) {
-    return imagePath;
-  }
-  const clean = imagePath.startsWith("/") ? imagePath.slice(1) : imagePath;
-  return `${API_URL}/${clean}`;
-}
+type StorageOption = {
+  method: StorageMethod;
+  label: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  daysText: string;
+  rawDays: number;
+};
 
 export default function ScanResultScreen() {
   const theme = useTheme();
-  const { colors, spacing, layout, radius, elevation } = theme;
+  const { colors, layout, radius, elevation } = theme;
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ scan?: string }>();
 
@@ -92,34 +77,62 @@ export default function ScanResultScreen() {
   const daysLeft = result.days_left ?? 1;
   const dayDisplayNumber = Math.max(0, Math.round(daysLeft));
 
-  // Determine status color and label
-  let statusBg = colors.statusSuccessSoft;
-  let statusColor = colors.statusSuccess;
+  let badgeStatus: "success" | "warning" | "urgent" | "expired" = "success";
   let statusText = "Fresh";
+  let statusColor = colors.statusSuccess;
 
   if (daysLeft <= 0 || result.status === "SPOILED") {
-    statusBg = colors.dangerSoft;
-    statusColor = colors.statusUrgent;
+    badgeStatus = "expired";
     statusText = "Spoiled";
-  } else if (daysLeft <= 1 || result.status === "EAT_TODAY") {
-    statusBg = colors.dangerSoft;
     statusColor = colors.statusUrgent;
+  } else if (daysLeft <= 1 || result.status === "EAT_TODAY") {
+    badgeStatus = "urgent";
     statusText = "Eat Today";
+    statusColor = colors.statusUrgent;
   } else if (daysLeft <= 4 || result.status === "EAT_SOON") {
-    statusBg = colors.statusWarningSoft;
-    statusColor = colors.statusWarning;
+    badgeStatus = "warning";
     statusText = "Eat Soon";
+    statusColor = colors.statusWarning;
   }
 
-  // Confidence calculations
-  const classPercent = Math.round((result.classification_confidence ?? 0.95) * 100);
+  const rawClassConf = result.classification_confidence ?? result.confidence ?? 1;
+  const lowConfidence = rawClassConf < 0.6;
+  const classPercent = Math.round(rawClassConf * 100);
   const freshPercent = Math.round((result.freshness_score ?? 0.8) * 100);
-  const overallPercent = Math.round((classPercent + freshPercent) / 2);
 
-  // Storage duration formatting
   const counterDays = result.estimated_shelf_life?.room_temp ?? 1;
   const fridgeDays = result.estimated_shelf_life?.fridge ?? 3;
   const freezerDays = result.estimated_shelf_life?.freezer ?? 90;
+
+  const formatDays = (days: number) => `${days} ${days === 1 ? "day" : "days"}`;
+  const formatFreezerDays = (days: number) =>
+    days >= 30 ? `Up to ${Math.round(days / 30)} mo` : formatDays(days);
+
+  const storageOptions: StorageOption[] = [
+    {
+      method: "room_temp",
+      label: "Counter",
+      icon: "sunny-outline",
+      daysText: formatDays(counterDays),
+      rawDays: counterDays,
+    },
+    {
+      method: "fridge",
+      label: "Fridge",
+      icon: "snow-outline",
+      daysText: formatDays(fridgeDays),
+      rawDays: fridgeDays,
+    },
+    {
+      method: "freezer",
+      label: "Freezer",
+      icon: "cube-outline",
+      daysText: formatFreezerDays(freezerDays),
+      rawDays: freezerDays,
+    },
+  ];
+
+  const bestStorage: StorageMethod = result.best_storage ?? "fridge";
 
   function executeAdd() {
     setAddError(null);
@@ -133,8 +146,9 @@ export default function ScanResultScreen() {
       },
       {
         onSuccess: () => {
+          void hapticSuccess();
           setAdded(true);
-          setTimeout(() => router.back(), 800);
+          setTimeout(() => router.back(), 750);
         },
         onError: (err) => {
           setAddError(err instanceof Error ? err.message : "Couldn't add that item. Try again.");
@@ -168,14 +182,13 @@ export default function ScanResultScreen() {
       },
       {
         onSuccess: () => {
+          void hapticSuccess();
           setDuplicateModalVisible(false);
           setAdded(true);
-          setTimeout(() => router.back(), 800);
+          setTimeout(() => router.back(), 750);
         },
         onError: (err) => {
-          setAddError(
-            err instanceof Error ? err.message : "Couldn't update quantity. Try again.",
-          );
+          setAddError(err instanceof Error ? err.message : "Couldn't update quantity. Try again.");
         },
       },
     );
@@ -188,120 +201,95 @@ export default function ScanResultScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      {/* Floating Back Navigation Button */}
       <View style={[styles.floatingHeader, { top: insets.top + 8 }]}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel="Back to scanner"
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.floatingBackBtn,
             { opacity: pressed ? 0.7 : 1 },
           ]}
         >
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={22} color={colors.primaryText} />
         </Pressable>
       </View>
 
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: 130 + insets.bottom },
-        ]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 132 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* 240px Hero Image Banner with Dark Gradient */}
-        <View style={styles.heroBanner}>
+        <View style={[styles.heroBanner, { backgroundColor: colors.backgroundMuted }]}>
           <Image
-            source={{ uri: resolveItemImage(result.image_path) }}
+            source={resolveItemImageSource(
+              result.image_path,
+              result.fruit.subcategory ?? result.fruit.name,
+            )}
             style={styles.heroImage}
             resizeMode="cover"
           />
           <View style={styles.heroOverlay} />
         </View>
 
-        {/* Elevated Overlapping Verdict Card (-mt-14) */}
-        <View
-          style={[
-            styles.verdictCardWrapper,
-            { paddingHorizontal: layout.screenPadding },
-          ]}
-        >
+        <View style={[styles.verdictCardWrapper, { paddingHorizontal: layout.screenPadding }]}>
           <View
             style={[
               styles.verdictCard,
               {
                 backgroundColor: colors.surface,
                 borderRadius: radius.modal,
-                borderColor: colors.border,
+                borderColor: lowConfidence ? colors.statusWarning : colors.border,
                 ...elevation.modal,
               },
             ]}
           >
-            {/* Status Pill with Dot */}
-            <View
-              style={[
-                styles.statusPill,
-                { backgroundColor: statusBg },
-              ]}
-            >
-              <View
-                style={[
-                  styles.statusDot,
-                  { backgroundColor: statusColor },
-                ]}
-              />
-              <Text
-                style={[
-                  styles.statusText,
-                  { color: statusColor },
-                ]}
-              >
-                {statusText}
-              </Text>
-            </View>
+            <Badge label={statusText} status={badgeStatus} showDot style={styles.statusPillMargin} />
 
-            {/* Fruit Name & Category */}
-            <Text variant="title" style={styles.fruitName}>
+            <Text variant="headline" color="primary" align="center" style={styles.fruitName}>
               {result.fruit.name}
             </Text>
-            <Text variant="caption" color="secondary" style={styles.subcategory}>
+            <Text variant="micro" color="secondary" style={styles.subcategory}>
               {result.fruit.subcategory || "Produce"}
             </Text>
 
-            {/* Giant 72px Urgency Number */}
-            <View style={styles.urgencyRow}>
-              <Text
+            {lowConfidence && (
+              <View
                 style={[
-                  styles.urgencyBigNumber,
-                  { color: statusColor },
+                  styles.lowConfBanner,
+                  {
+                    backgroundColor: colors.statusWarningSoft,
+                    borderColor: colors.statusWarning,
+                    borderRadius: radius.card,
+                  },
                 ]}
               >
+                <Ionicons name="alert-circle-outline" size={18} color={colors.statusWarning} />
+                <Text variant="caption" color="primary" style={styles.lowConfText}>
+                  Low confidence match ({classPercent}%). Hold one item closer in good light and retake before saving.
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.urgencyRow}>
+              <Text variant="statusHuge" style={{ color: statusColor }}>
                 {dayDisplayNumber}
               </Text>
             </View>
-            <Text
-              style={[
-                styles.urgencyUnitLabel,
-                { color: statusColor },
-              ]}
-            >
-              {dayDisplayNumber === 1 ? "DAY LEFT" : "DAYS LEFT"}
+            <Text variant="label" style={[styles.urgencyUnitLabel, { color: statusColor }]}>
+              {dayDisplayNumber === 1 ? "Day left" : "Days left"}
             </Text>
 
-            {/* Recommendation Paragraph */}
-            <Text variant="body" style={styles.recommendationText}>
-              {result.recommendation || `Use this ${result.fruit.name} soon to enjoy peak flavor and nutritional quality.`}
+            <Text variant="caption" color="secondary" align="center" style={styles.recommendationText}>
+              {result.recommendation ||
+                `Use this ${result.fruit.name} soon for peak flavor and nutrition.`}
             </Text>
 
-            {/* AI Confidence Breakdown Metadata */}
-            <Text style={styles.confidenceText}>
-              Class {classPercent}% · Fresh {freshPercent}% · Overall {overallPercent}%
+            <Text variant="micro" color="tertiary">
+              Match certainty {classPercent}%, freshness {freshPercent}%
             </Text>
           </View>
         </View>
 
-        {/* Additional Details & Shelf Life Table */}
         <View style={[styles.detailsSection, { paddingHorizontal: layout.screenPadding }]}>
           {addError != null && (
             <View
@@ -311,13 +299,13 @@ export default function ScanResultScreen() {
               ]}
             >
               <Ionicons name="alert-circle" size={18} color={colors.statusUrgent} />
-              <Text variant="caption" style={{ color: colors.statusUrgent, flex: 1, fontWeight: "600" }}>
+              <Text variant="caption" color="danger" style={styles.errorText}>
                 {addError}
               </Text>
             </View>
           )}
 
-          {/* Shelf Life by Storage Table */}
+          {/* Dynamic Shelf Life by Storage Table */}
           <View
             style={[
               styles.shelfLifeCard,
@@ -337,122 +325,94 @@ export default function ScanResultScreen() {
                 },
               ]}
             >
-              <Text variant="body" style={styles.shelfLifeTitle}>
-                Shelf Life Estimate
+              <Text variant="bodyStrong" color="primary">
+                Shelf life by storage
+              </Text>
+              <Text variant="micro" color="tertiary">
+                Tap where you plan to store it
               </Text>
             </View>
 
-            {/* Counter Row */}
-            <Pressable
-              onPress={() => setSelectedStorage("room_temp")}
-              style={[
-                styles.storageRow,
-                { borderBottomColor: colors.border },
-                selectedStorage === "room_temp" && { backgroundColor: colors.backgroundMuted },
-              ]}
-            >
-              <View style={styles.storageLeft}>
-                <View
-                  style={[
-                    styles.storageIconCircle,
-                    { backgroundColor: colors.backgroundMuted },
-                  ]}
-                >
-                  <Ionicons name="sunny-outline" size={18} color={colors.textSecondary} />
-                </View>
-                <Text variant="body" style={styles.storageName}>
-                  Counter
-                </Text>
-              </View>
-              <Text
-                style={[
-                  styles.storageDaysText,
-                  { color: counterDays <= 1 ? colors.statusUrgent : colors.textPrimary },
-                ]}
-              >
-                {counterDays} {counterDays === 1 ? "day" : "days"}
-              </Text>
-            </Pressable>
+            {storageOptions.map((option, index) => {
+              const isBest = option.method === bestStorage;
+              const isSelected = option.method === selectedStorage;
+              const isLast = index === storageOptions.length - 1;
 
-            {/* Fridge Row (Recommended) */}
-            <Pressable
-              onPress={() => setSelectedStorage("fridge")}
-              style={[
-                styles.storageRow,
-                styles.storageRowRecommended,
-                {
-                  borderBottomColor: colors.border,
-                  backgroundColor: colors.statusSuccessSoft,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.recomLeftAccent,
-                  { backgroundColor: colors.statusSuccess },
-                ]}
-              />
-              <View style={styles.storageLeft}>
-                <View
+              return (
+                <Pressable
+                  key={option.method}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: isSelected }}
+                  onPress={() => {
+                    void hapticLight();
+                    setSelectedStorage(option.method);
+                  }}
                   style={[
-                    styles.storageIconCircle,
-                    { backgroundColor: "#FFFFFF" },
+                    styles.storageRow,
+                    !isLast && { borderBottomWidth: 1, borderBottomColor: colors.border },
+                    isSelected && {
+                      backgroundColor: isBest ? colors.statusSuccessSoft : colors.backgroundMuted,
+                    },
+                    !isSelected && isBest && { backgroundColor: colors.secondaryAction },
                   ]}
                 >
-                  <Ionicons name="snow-outline" size={18} color={colors.statusSuccess} />
-                </View>
-                <View style={styles.recomCol}>
-                  <Text variant="body" style={[styles.storageName, { fontWeight: "800" }]}>
-                    Fridge
-                  </Text>
+                  {isBest && (
+                    <View
+                      style={[
+                        styles.recomLeftAccent,
+                        { backgroundColor: colors.statusSuccess },
+                      ]}
+                    />
+                  )}
+
+                  <View style={styles.storageLeft}>
+                    <View
+                      style={[
+                        styles.storageIconCircle,
+                        { backgroundColor: isBest ? colors.surface : colors.backgroundMuted },
+                      ]}
+                    >
+                      <Ionicons
+                        name={option.icon}
+                        size={18}
+                        color={isBest || isSelected ? colors.primary : colors.textSecondary}
+                      />
+                    </View>
+
+                    <View style={styles.recomCol}>
+                      <View style={styles.storageTitleRow}>
+                        <Text variant="bodyStrong" color="primary">
+                          {option.label}
+                        </Text>
+                        {isSelected && (
+                          <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+                        )}
+                      </View>
+                      {isBest && (
+                        <Text variant="micro" color="success" style={styles.bestLabel}>
+                          Recommended
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+
                   <Text
-                    style={[
-                      styles.recomBadgeText,
-                      { color: colors.statusSuccess },
-                    ]}
+                    variant="bodyStrong"
+                    color={
+                      option.rawDays <= 1
+                        ? "danger"
+                        : isBest
+                          ? "success"
+                          : "primary"
+                    }
                   >
-                    RECOMMENDED
+                    {option.daysText}
                   </Text>
-                </View>
-              </View>
-              <Text
-                style={[
-                  styles.storageDaysText,
-                  { color: colors.statusWarning, fontWeight: "800" },
-                ]}
-              >
-                {fridgeDays} {fridgeDays === 1 ? "day" : "days"}
-              </Text>
-            </Pressable>
-
-            {/* Freezer Row */}
-            <Pressable
-              onPress={() => setSelectedStorage("freezer")}
-              style={[
-                styles.storageRow,
-                selectedStorage === "freezer" && { backgroundColor: colors.backgroundMuted },
-              ]}
-            >
-              <View style={styles.storageLeft}>
-                <View
-                  style={[
-                    styles.storageIconCircle,
-                    { backgroundColor: colors.backgroundMuted },
-                  ]}
-                >
-                  <Ionicons name="cube-outline" size={18} color={colors.textSecondary} />
-                </View>
-                <Text variant="body" style={styles.storageName}>
-                  Freezer
-                </Text>
-              </View>
-              <Text style={[styles.storageDaysText, { color: colors.textSecondary }]}>
-                {freezerDays >= 30 ? `Up to ${Math.round(freezerDays / 30)} mo` : `${freezerDays} days`}
-              </Text>
-            </Pressable>
+                </Pressable>
+              );
+            })}
           </View>
 
-          {/* Storage Tip Card with Lightbulb */}
           {result.storage_tip && (
             <View
               style={[
@@ -463,63 +423,48 @@ export default function ScanResultScreen() {
                 },
               ]}
             >
-              <Ionicons
-                name="bulb-outline"
-                size={22}
-                color={colors.statusWarning}
-                style={styles.tipIcon}
-              />
+              <Ionicons name="bulb-outline" size={22} color={colors.statusWarning} style={styles.tipIcon} />
               <View style={styles.tipTextCol}>
-                <Text variant="body" style={styles.tipHeading}>
-                  Storage Tip
+                <Text variant="bodyStrong" color="primary" style={styles.tipHeading}>
+                  Storage tip
                 </Text>
-                <Text
-                  variant="caption"
-                  color="secondary"
-                  style={styles.tipParagraph}
-                >
+                <Text variant="caption" color="secondary">
                   {result.storage_tip}
                 </Text>
               </View>
             </View>
           )}
 
-          {/* Ethylene Sensitivity Alert Card */}
-          {(result.ethylene_note != null || result.fruit.is_ethylene_sensitive || result.fruit.is_ethylene_producer) && (
+          {(result.ethylene_note != null ||
+            result.fruit.is_ethylene_sensitive ||
+            result.fruit.is_ethylene_producer) && (
             <View
               style={[
                 styles.ethyleneCard,
                 {
                   backgroundColor: colors.statusWarningSoft,
-                  borderColor: "#FCE7B8",
+                  borderColor: colors.borderStrong,
                   borderRadius: radius.card,
                 },
               ]}
             >
-              <Ionicons
-                name="warning-outline"
-                size={22}
-                color={colors.statusWarning}
-                style={styles.tipIcon}
-              />
+              <Ionicons name="warning-outline" size={22} color={colors.statusWarning} style={styles.tipIcon} />
               <View style={styles.tipTextCol}>
-                <Text
-                  style={[
-                    styles.ethyleneHeading,
-                    { color: colors.statusWarning },
-                  ]}
-                >
-                  {result.fruit.is_ethylene_producer ? "Ethylene Producer" : "Ethylene Sensitive"}
+                <Text variant="bodyStrong" color="warning" style={styles.ethyleneHeading}>
+                  {result.fruit.is_ethylene_producer
+                    ? "Releases ripening gas"
+                    : "Sensitive to ripening gas"}
                 </Text>
-                <Text
-                  variant="caption"
-                  color="secondary"
-                  style={styles.tipParagraph}
-                >
+                <Text variant="micro" color="secondary" style={styles.jargonExplainer}>
+                  {result.fruit.is_ethylene_producer
+                    ? "Ethylene producer — releases natural gas that speeds up ripening and spoilage in nearby produce."
+                    : "Ethylene sensitive — spoils faster when stored near bananas, apples, or avocados."}
+                </Text>
+                <Text variant="caption" color="primary">
                   {result.ethylene_note ||
                     (result.fruit.is_ethylene_producer
-                      ? `${result.fruit.name} releases high ethylene gas. Keep away from sensitive produce like leafy greens and tomatoes to avoid rapid spoilage.`
-                      : `${result.fruit.name} is sensitive to ethylene gas. Store away from bananas, apples, and avocados.`)}
+                      ? `Store ${result.fruit.name} away from leafy greens, berries, and tomatoes.`
+                      : `Keep ${result.fruit.name} separate from ripening apples, bananas, and avocados.`)}
                 </Text>
               </View>
             </View>
@@ -541,24 +486,23 @@ export default function ScanResultScreen() {
       >
         <View style={styles.actionsRow}>
           <Button
-            label="Scan Again"
-            variant="secondary"
+            label={lowConfidence ? "Retake Photo" : "Scan Again"}
+            variant={lowConfidence ? "accent" : "secondary"}
             onPress={() => router.back()}
-            style={styles.scanAgainBtn}
+            style={lowConfidence ? styles.addInventoryBtn : styles.scanAgainBtn}
           />
 
           <Button
-            label={added ? "Added to Inventory" : "Add to Inventory"}
-            variant="accent"
+            label={added ? "Added to Fridge" : lowConfidence ? "Save Anyway" : "Add to Fridge"}
+            variant={lowConfidence ? "secondary" : "accent"}
             loading={addToFridge.isPending}
             disabled={added}
             onPress={handleAdd}
-            style={styles.addInventoryBtn}
+            style={lowConfidence ? styles.scanAgainBtn : styles.addInventoryBtn}
           />
         </View>
       </View>
 
-      {/* Duplicate Item Dialog */}
       <DuplicateItemDialog
         visible={duplicateModalVisible}
         fruitName={result.fruit.name}
@@ -583,10 +527,10 @@ const styles = StyleSheet.create({
     zIndex: 30,
   },
   floatingBackBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(26, 36, 27, 0.56)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -595,8 +539,7 @@ const styles = StyleSheet.create({
   },
   heroBanner: {
     width: "100%",
-    height: 240,
-    backgroundColor: "#EEEEEE",
+    height: 232,
     position: "relative",
   },
   heroImage: {
@@ -605,7 +548,7 @@ const styles = StyleSheet.create({
   },
   heroOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    backgroundColor: "rgba(26, 36, 27, 0.30)",
   },
   verdictCardWrapper: {
     marginTop: -52,
@@ -617,68 +560,38 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
   },
-  statusPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
+  statusPillMargin: {
+    alignSelf: "center",
     marginBottom: 12,
-    gap: 6,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1,
-    textTransform: "uppercase",
   },
   fruitName: {
-    fontSize: 24,
-    fontWeight: "800",
-    letterSpacing: -0.4,
     marginBottom: 2,
-    textAlign: "center",
   },
   subcategory: {
-    fontSize: 12,
-    fontWeight: "500",
-    marginBottom: 16,
+    marginBottom: 14,
+  },
+  lowConfBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    borderWidth: 1,
+    padding: 12,
+    gap: 8,
+    marginBottom: 14,
+    width: "100%",
+  },
+  lowConfText: {
+    flex: 1,
   },
   urgencyRow: {
     alignItems: "center",
     justifyContent: "center",
   },
-  urgencyBigNumber: {
-    fontSize: 72,
-    fontWeight: "900",
-    letterSpacing: -2,
-    lineHeight: 76,
-  },
   urgencyUnitLabel: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
     marginBottom: 14,
   },
   recommendationText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: "500",
-    textAlign: "center",
     maxWidth: 280,
-    marginBottom: 14,
-  },
-  confidenceText: {
-    fontSize: 11,
-    color: "#757575",
-    fontWeight: "600",
-    letterSpacing: 0.2,
+    marginBottom: 12,
   },
   detailsSection: {
     gap: 16,
@@ -689,6 +602,9 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 8,
   },
+  errorText: {
+    flex: 1,
+  },
   shelfLifeCard: {
     borderWidth: 1,
     overflow: "hidden",
@@ -697,10 +613,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-  },
-  shelfLifeTitle: {
-    fontSize: 14,
-    fontWeight: "700",
+    gap: 2,
   },
   storageRow: {
     flexDirection: "row",
@@ -708,9 +621,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    borderBottomWidth: 1,
-  },
-  storageRowRecommended: {
     position: "relative",
     overflow: "hidden",
   },
@@ -733,21 +643,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  storageName: {
-    fontSize: 14,
-    fontWeight: "600",
+  storageTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   recomCol: {
     flexDirection: "column",
   },
-  recomBadgeText: {
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-  },
-  storageDaysText: {
-    fontSize: 15,
+  bestLabel: {
     fontWeight: "700",
+    marginTop: 1,
   },
   tipCard: {
     flexDirection: "row",
@@ -762,12 +668,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tipHeading: {
-    fontSize: 14,
-    fontWeight: "700",
     marginBottom: 4,
-  },
-  tipParagraph: {
-    lineHeight: 18,
   },
   ethyleneCard: {
     flexDirection: "row",
@@ -777,9 +678,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   ethyleneHeading: {
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: 4,
+    marginBottom: 2,
+  },
+  jargonExplainer: {
+    marginBottom: 6,
   },
   fixedActionBar: {
     position: "absolute",
