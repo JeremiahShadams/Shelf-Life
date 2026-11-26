@@ -1,8 +1,7 @@
 /**
  * Fresco — Tab shell
- * Four tabs: Scan (home) • Fridge • Ideas • Profile.
- * JavaScript tabs (bundled with Expo Router, SDK 56+). Native headers are
- * off — each screen renders its own large title in content.
+ * Four tabs whose tab labels, route filenames, and screen headers match 1:1:
+ * Scan (index) • Fridge (fridge) • Storage (storage) • Profile (profile).
  */
 
 import { Ionicons } from "@expo/vector-icons";
@@ -14,12 +13,9 @@ import { useTheme } from "../../../theme";
 type IconName = ComponentProps<typeof Ionicons>["name"];
 type IconProps = { focused: boolean; color: ColorValue; size: number };
 
-// Ionicons only accepts plain string colors; the tab bar may pass a
-// slightly wider ColorValue. Narrow it here, not inline.
 function toIconColor(color: ColorValue): string | undefined {
   if (color == null) return undefined;
   if (typeof color === "number") {
-    // ARGB int → hex string (rare fallback path)
     return `#${color.toString(16).padStart(8, "0")}`;
   }
   return typeof color === "string" ? color : undefined;
@@ -34,13 +30,13 @@ function TabIcon({ outline, filled, focused, color, size }: TabIconProps) {
 function ScanIcon(args: IconProps) {
   return <TabIcon outline="scan-outline" filled="scan" {...args} />;
 }
-function InventoryIcon(args: IconProps) {
+function FridgeIcon(args: IconProps) {
   return <TabIcon outline="list-outline" filled="list" {...args} />;
 }
 function StorageIcon(args: IconProps) {
   return <TabIcon outline="swap-horizontal-outline" filled="swap-horizontal" {...args} />;
 }
-function AccountIcon(args: IconProps) {
+function ProfileIcon(args: IconProps) {
   return <TabIcon outline="person-outline" filled="person" {...args} />;
 }
 
@@ -79,11 +75,11 @@ export default function TabLayout() {
         name="fridge"
         options={{
           title: "Fridge",
-          tabBarIcon: InventoryIcon,
+          tabBarIcon: FridgeIcon,
         }}
       />
       <Tabs.Screen
-        name="ideas"
+        name="storage"
         options={{
           title: "Storage",
           tabBarIcon: StorageIcon,
@@ -93,7 +89,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: AccountIcon,
+          tabBarIcon: ProfileIcon,
         }}
       />
     </Tabs>
