@@ -8,7 +8,7 @@
  * - 56px solid black "Save changes" CTA
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -64,14 +64,11 @@ export function EditInventorySheet({
   const [storage, setStorage] = useState<StorageMethod>(initialStorage || "fridge");
   const [notes, setNotes] = useState(initialNotes || "");
 
-  // Sync state whenever sheet opens with new item data
-  useEffect(() => {
-    if (visible) {
-      setQuantity(Math.max(1, initialQuantity || 1));
-      setStorage(initialStorage || "fridge");
-      setNotes(initialNotes || "");
-    }
-  }, [visible, initialQuantity, initialStorage, initialNotes]);
+  const handleShow = () => {
+    setQuantity(Math.max(1, initialQuantity || 1));
+    setStorage(initialStorage || "fridge");
+    setNotes(initialNotes || "");
+  };
 
   const handleDecrement = () => {
     if (quantity > 1) {
@@ -96,6 +93,7 @@ export function EditInventorySheet({
       visible={visible}
       transparent
       animationType="slide"
+      onShow={handleShow}
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>

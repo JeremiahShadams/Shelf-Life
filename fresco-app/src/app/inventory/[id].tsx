@@ -1,24 +1,12 @@
 /**
  * FRESCO — Inventory Item Detail Screen
- * Matches SuperDesign draft (a36ece01-4ae0-4474-9861-dcd7e5400240):
- * - Hero image banner (256px / h-64) with gradient scrim
- * - Floating uppercase status badge (EAT TODAY, EAT SOON, FRESH)
- * - Giant 72px (7xl) bold urgency day counter
- * - 2-Column Info Grid: Quantity & Storage with icons
- * - Fixed bottom action bar: 56px solid black "Mark as eaten" + 56x56px gray trash button
- * - Edit item modal sheet integration
- * - Action toast with Undo support
+ * - Shared offline-safe image resolver (no external Unsplash dependency)
+ * - Haptic confirmation on "Mark as eaten" & "Remove"
+ * - Fraunces editorial typography for hero title and urgency day numeral
  */
 
 import React, { useState } from "react";
-import {
-  Alert,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Alert, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -30,8 +18,9 @@ import {
   useInventoryItem,
   useUpdateInventoryItem,
 } from "../../hooks/useInventory";
-import { API_URL } from "../../services/api";
 import { parseServerDate } from "../../utils/datetime";
+import { hapticSuccess, hapticWarning } from "../../utils/haptics";
+import { resolveItemImageSource } from "../../utils/images";
 import type { ItemStatus, StorageMethod } from "../../types/api";
 
 const STORAGE_ICONS: Record<StorageMethod, keyof typeof Ionicons.glyphMap> = {
@@ -50,22 +39,6 @@ function formatDate(value: string): string {
   const date = parseServerDate(value);
   if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-function resolveItemImage(imagePath: string | null | undefined): string {
-  if (!imagePath) {
-    // High-resolution fallback fresh fruit banner
-    return "https://images.unsplash.com/photo-1619566636858-adf3ef46400b?auto=format&fit=crop&w=800&q=80";
-  }
-  if (
-    imagePath.startsWith("http://") ||
-    imagePath.startsWith("https://") ||
-    imagePath.startsWith("file://")
-  ) {
-    return imagePath;
-  }
-  const clean = imagePath.startsWith("/") ? imagePath.slice(1) : imagePath;
-  return `${API_URL}/${clean}`;
 }
 
 export default function InventoryItemScreen() {
@@ -98,7 +71,7 @@ export default function InventoryItemScreen() {
         <ErrorState
           full
           title="Item not found"
-          message="It may have been removed. Go back and refresh your inventory."
+          message="It may have been removed. Go back and refresh your fridge."
           retryLabel="Go back"
           onRetry={() => router.back()}
         />
@@ -108,24 +81,24 @@ export default function InventoryItemScreen() {
 
   const item = itemQuery.data;
   const daysLeft = item.days_left ?? item.estimated_days_remaining ?? 0;
-  const status: ItemStatus = item.status ?? (daysLeft <= 1 ? "EAT_TODAY" : daysLeft <= 4 ? "EAT_SOON" : "FRESH");
+  const status: ItemStatus =
+    item.status ?? (daysLeft <= 1 ? "EAT_TODAY" : daysLeft <= 4 ? "EAT_SOON" : "FRESH");
 
-  // Determine badge styling and text
   let statusBadgeBg = colors.statusSuccess;
-  let statusBadgeLabel = "FRESH";
+  let statusBadgeLabel = "Fresh";
   let urgencyTextColor = colors.statusSuccess;
 
   if (daysLeft <= 0 || status === "SPOILED") {
     statusBadgeBg = colors.statusUrgent;
-    statusBadgeLabel = "EXPIRED";
+    statusBadgeLabel = "Expired";
     urgencyTextColor = colors.statusUrgent;
   } else if (daysLeft <= 1 || status === "EAT_TODAY") {
     statusBadgeBg = colors.statusUrgent;
-    statusBadgeLabel = "EAT TODAY";
+    statusBadgeLabel = "Eat Today";
     urgencyTextColor = colors.statusUrgent;
   } else if (daysLeft <= 4 || status === "EAT_SOON") {
     statusBadgeBg = colors.statusWarning;
-    statusBadgeLabel = "EAT SOON";
+    statusBadgeLabel = "Eat Soon";
     urgencyTextColor = colors.statusWarning;
   }
 
@@ -142,14 +115,13 @@ export default function InventoryItemScreen() {
       },
       {
         onSuccess: () => {
+          void hapticSuccess();
           setEditSheetVisible(false);
           setToastMessage("Changes saved");
           setToastUndoAction(undefined);
         },
         onError: (err) => {
-          setActionError(
-            err instanceof Error ? err.message : "Couldn't save changes. Try again.",
-          );
+          setActionError(err instanceof Error ? err.message : "Couldn't save changes. Try again.");
         },
       },
     );
@@ -161,19 +133,17 @@ export default function InventoryItemScreen() {
       { itemId: item.id, update: { is_consumed: true } },
       {
         onSuccess: () => {
+          void hapticSuccess();
           setToastMessage("Marked as eaten");
           setToastUndoAction(() => () => {
             updateItem.mutate({ itemId: item.id, update: { is_consumed: false } });
           });
-          // Allow user brief moment to undo, otherwise navigate back
           setTimeout(() => {
             router.back();
           }, 1800);
         },
         onError: (err) => {
-          setActionError(
-            err instanceof Error ? err.message : "Couldn't update item. Try again.",
-          );
+          setActionError(err instanceof Error ? err.message : "Couldn't update item. Try again.");
         },
       },
     );
@@ -182,7 +152,7 @@ export default function InventoryItemScreen() {
   const handleConfirmRemove = () => {
     Alert.alert(
       "Remove item?",
-      `${item.fruit.name} will be deleted from your inventory.`,
+      `${item.fruit.name} will be deleted from your fridge.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -192,6 +162,7 @@ export default function InventoryItemScreen() {
             setActionError(null);
             deleteItem.mutate(item.id, {
               onSuccess: () => {
+                void hapticWarning();
                 setToastMessage("Item removed");
                 setToastUndoAction(undefined);
                 router.back();
@@ -210,13 +181,10 @@ export default function InventoryItemScreen() {
 
   const dayDisplayNumber = Math.max(0, Math.ceil(daysLeft));
   const daySubtitle =
-    dayDisplayNumber === 1
-      ? "estimated day remaining"
-      : "estimated days remaining";
+    dayDisplayNumber === 1 ? "estimated day remaining" : "estimated days remaining";
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      {/* Top Navigation Header */}
       <SafeAreaView edges={["top"]} style={styles.topSafeArea}>
         <View style={styles.navHeader}>
           <Pressable
@@ -231,8 +199,8 @@ export default function InventoryItemScreen() {
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
 
-          <Text variant="title" style={styles.navTitle}>
-            Item Detail
+          <Text variant="cardTitle" color="primary">
+            Item detail
           </Text>
 
           <Pressable
@@ -249,50 +217,39 @@ export default function InventoryItemScreen() {
         </View>
       </SafeAreaView>
 
-      {/* Scrollable Content */}
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: 120 + insets.bottom },
-        ]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Image Container (256px / h-64) */}
-        <View style={styles.heroBanner}>
+        <View style={[styles.heroBanner, { backgroundColor: colors.backgroundMuted }]}>
           <Image
-            source={{ uri: resolveItemImage(item.image_path) }}
+            source={resolveItemImageSource(
+              item.image_path,
+              item.fruit.subcategory ?? item.fruit.name,
+            )}
             style={styles.heroImage}
             resizeMode="cover"
           />
-          {/* Dark Overlay Scrim for high contrast text */}
           <View style={styles.heroOverlay} />
 
-          {/* Floating Badges & Fruit Name on Hero */}
           <View style={styles.heroTextContainer}>
-            <View
-              style={[
-                styles.heroStatusBadge,
-                { backgroundColor: statusBadgeBg },
-              ]}
-            >
-              <Text style={styles.heroStatusBadgeText}>
+            <View style={[styles.heroStatusBadge, { backgroundColor: statusBadgeBg }]}>
+              <Text variant="label" color="inverse">
                 {statusBadgeLabel}
               </Text>
             </View>
 
-            <Text style={styles.heroFruitName} numberOfLines={1}>
+            <Text variant="largeTitle" color="inverse" numberOfLines={1}>
               {item.fruit.name}
             </Text>
 
-            <Text style={styles.heroSubcategory}>
+            <Text variant="caption" style={styles.heroSubcategory}>
               {item.fruit.subcategory || "Produce"}
             </Text>
           </View>
         </View>
 
-        {/* Main Body */}
         <View style={[styles.bodyContainer, { paddingHorizontal: spacing.l }]}>
-          {/* Action Error if any */}
           {actionError && (
             <View
               style={[
@@ -300,88 +257,55 @@ export default function InventoryItemScreen() {
                 { backgroundColor: colors.dangerSoft, borderRadius: radius.card },
               ]}
             >
-              <Ionicons
-                name="alert-circle-outline"
-                size={18}
-                color={colors.statusUrgent}
-              />
-              <Text
-                variant="caption"
-                style={[styles.errorText, { color: colors.statusUrgent }]}
-              >
+              <Ionicons name="alert-circle-outline" size={18} color={colors.statusUrgent} />
+              <Text variant="caption" color="danger" style={styles.errorText}>
                 {actionError}
               </Text>
             </View>
           )}
 
-          {/* Giant Urgency Metric Section */}
           <View style={styles.urgencySection}>
-            <Text
-              style={[
-                styles.urgencyBigNumber,
-                { color: urgencyTextColor },
-              ]}
-            >
+            <Text variant="statusHuge" style={{ color: urgencyTextColor }}>
               {dayDisplayNumber}
             </Text>
             <View style={styles.urgencyTextCol}>
-              <Text
-                variant="title"
-                style={[styles.urgencyDayText, { color: colors.textPrimary }]}
-              >
+              <Text variant="title" color="primary">
                 {daySubtitle}
               </Text>
-              <Text
-                variant="caption"
-                style={[styles.urgencyDisclaimer, { color: colors.textSecondary }]}
-              >
+              <Text variant="micro" color="secondary">
                 Estimated, not a guarantee
               </Text>
             </View>
           </View>
 
-          {/* 2-Column Info Grid (Quantity & Storage) */}
           <View style={styles.infoGrid}>
             <View style={styles.gridCol}>
-              <Text
-                variant="caption"
-                style={[styles.colLabel, { color: colors.textSecondary }]}
-              >
+              <Text variant="micro" color="secondary" style={styles.colLabel}>
                 Quantity
               </Text>
-              <Text
-                variant="headline"
-                style={[styles.colValue, { color: colors.textPrimary }]}
-              >
+              <Text variant="cardTitle" color="primary">
                 {item.quantity} {item.quantity === 1 ? "item" : "items"}
               </Text>
             </View>
 
             <View style={styles.gridCol}>
-              <Text
-                variant="caption"
-                style={[styles.colLabel, { color: colors.textSecondary }]}
-              >
+              <Text variant="micro" color="secondary" style={styles.colLabel}>
                 Storage
               </Text>
               <View style={styles.storageValueRow}>
                 <Ionicons
                   name={STORAGE_ICONS[item.storage_method] || "snow-outline"}
                   size={18}
-                  color={colors.textSecondary}
+                  color={colors.primary}
                   style={styles.storageIcon}
                 />
-                <Text
-                  variant="headline"
-                  style={[styles.colValue, { color: colors.textPrimary }]}
-                >
+                <Text variant="cardTitle" color="primary">
                   {STORAGE_LABELS[item.storage_method] || "Fridge"}
                 </Text>
               </View>
             </View>
           </View>
 
-          {/* Dates & Timeline Meta */}
           <View
             style={[
               styles.metaCard,
@@ -394,9 +318,9 @@ export default function InventoryItemScreen() {
           >
             <View style={styles.metaRow}>
               <Text variant="caption" color="secondary">
-                Added to inventory
+                Added to fridge
               </Text>
-              <Text variant="caption" style={styles.metaValue}>
+              <Text variant="caption" color="primary" style={styles.metaValue}>
                 {formatDate(item.scanned_at)}
               </Text>
             </View>
@@ -405,7 +329,7 @@ export default function InventoryItemScreen() {
               <Text variant="caption" color="secondary">
                 Estimated expiry
               </Text>
-              <Text variant="caption" style={styles.metaValue}>
+              <Text variant="caption" color="primary" style={styles.metaValue}>
                 {formatDate(item.estimated_expiry)}
               </Text>
             </View>
@@ -415,14 +339,13 @@ export default function InventoryItemScreen() {
                 <Text variant="caption" color="secondary">
                   Note
                 </Text>
-                <Text variant="caption" style={[styles.metaValue, { maxWidth: "65%" }]}>
+                <Text variant="caption" color="primary" style={[styles.metaValue, { maxWidth: "65%" }]}>
                   {item.notes}
                 </Text>
               </View>
             )}
           </View>
 
-          {/* Storage Tip Card */}
           {item.fruit.storage_tips && (
             <View
               style={[
@@ -436,19 +359,12 @@ export default function InventoryItemScreen() {
               ]}
             >
               <View style={styles.tipHeader}>
-                <Ionicons
-                  name="information-circle-outline"
-                  size={18}
-                  color={colors.textPrimary}
-                />
-                <Text variant="body" style={styles.tipTitle}>
-                  Storage Tip
+                <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
+                <Text variant="bodyStrong" color="primary">
+                  Storage tip
                 </Text>
               </View>
-              <Text
-                variant="caption"
-                style={[styles.tipBody, { color: colors.textSecondary }]}
-              >
+              <Text variant="caption" color="secondary">
                 {item.fruit.storage_tips}
               </Text>
             </View>
@@ -456,7 +372,6 @@ export default function InventoryItemScreen() {
         </View>
       </ScrollView>
 
-      {/* Fixed Bottom Action Bar */}
       <View
         style={[
           styles.bottomActionBar,
@@ -492,16 +407,11 @@ export default function InventoryItemScreen() {
               },
             ]}
           >
-            <Ionicons
-              name="trash-outline"
-              size={22}
-              color={colors.textPrimary}
-            />
+            <Ionicons name="trash-outline" size={22} color={colors.textPrimary} />
           </Pressable>
         </View>
       </View>
 
-      {/* Edit Item Bottom Sheet */}
       <EditInventorySheet
         visible={editSheetVisible}
         initialQuantity={item.quantity}
@@ -513,7 +423,6 @@ export default function InventoryItemScreen() {
         onSave={handleEditSave}
       />
 
-      {/* Action Toast with Undo */}
       <Toast
         visible={toastMessage != null}
         message={toastMessage || ""}
@@ -548,10 +457,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  navTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-  },
   scrollContent: {
     flexGrow: 1,
   },
@@ -559,7 +464,6 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 256,
     position: "relative",
-    backgroundColor: "#F6F6F6",
   },
   heroImage: {
     width: "100%",
@@ -567,7 +471,7 @@ const styles = StyleSheet.create({
   },
   heroOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    backgroundColor: "rgba(26, 36, 27, 0.48)",
   },
   heroTextContainer: {
     position: "absolute",
@@ -579,27 +483,12 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 6,
     marginBottom: 8,
   },
-  heroStatusBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-  heroFruitName: {
-    fontSize: 30,
-    fontWeight: "900",
-    color: "#FFFFFF",
-    letterSpacing: -0.5,
-    marginBottom: 2,
-  },
   heroSubcategory: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "rgba(255, 255, 255, 0.8)",
+    color: "rgba(255, 255, 255, 0.85)",
+    marginTop: 2,
   },
   bodyContainer: {
     paddingTop: 24,
@@ -612,51 +501,29 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   errorText: {
-    fontWeight: "600",
     flex: 1,
   },
   urgencySection: {
     flexDirection: "row",
     alignItems: "baseline",
     gap: 14,
-    marginBottom: 32,
-  },
-  urgencyBigNumber: {
-    fontSize: 72,
-    fontWeight: "900",
-    letterSpacing: -2,
-    lineHeight: 76,
+    marginBottom: 28,
   },
   urgencyTextCol: {
+    flex: 1,
     flexDirection: "column",
     justifyContent: "center",
-  },
-  urgencyDayText: {
-    fontSize: 18,
-    fontWeight: "800",
-    letterSpacing: -0.3,
-    marginBottom: 2,
-  },
-  urgencyDisclaimer: {
-    fontSize: 12,
-    fontWeight: "500",
   },
   infoGrid: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 28,
+    marginBottom: 24,
   },
   gridCol: {
     flex: 1,
   },
   colLabel: {
-    fontSize: 12,
-    fontWeight: "600",
     marginBottom: 4,
-  },
-  colValue: {
-    fontSize: 16,
-    fontWeight: "700",
   },
   storageValueRow: {
     flexDirection: "row",
@@ -684,13 +551,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     marginBottom: 6,
-  },
-  tipTitle: {
-    fontWeight: "700",
-    fontSize: 14,
-  },
-  tipBody: {
-    lineHeight: 18,
   },
   bottomActionBar: {
     position: "absolute",
