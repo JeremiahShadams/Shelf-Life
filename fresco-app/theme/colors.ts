@@ -2,51 +2,52 @@
  * FRESCO — Natural Agritech & Organic Produce Design System
  * Clean, luminous, artisanal off-white aesthetic.
  *
- * Locked Color Philosophy:
- * - Canvas / Background (Crisp Organic Off-White - #FAF8F5):
- *   Soft, natural, airy off-white canvas that keeps food photography & fresh produce
- *   looking vibrant, crisp, and 100% natural.
+ * Color Philosophy:
+ * - Canvas / Background (#FAF8F5):
+ *   Soft, airy organic off-white canvas that keeps food photography vibrant.
  * - Surface (#FFFFFF):
- *   Elevated pure porcelain cards on the off-white canvas with delicate hairline borders.
+ *   Elevated porcelain cards on the off-white canvas with hairline borders.
  * - Primary (Deep Forest Green - #1B5E20):
- *   Headers, branding, and major text elements signaling nature, organic farming & sustainability.
+ *   Reserved deliberately for wordmarks, active tabs, and brand anchors.
  * - Secondary (Leaf Green - #4A943E):
- *   Subtle categories, cards, and healthy item tags.
+ *   Freshness status, optimal storage tags, and healthy vitality signals.
  * - Accent (Carrot Orange - #D98327):
- *   Action CTAs, Add-to-Cart, Scan capture triggers to stimulate appetite & action.
+ *   High-intent capture triggers, add-to-fridge CTAs, and appetite stimulus.
+ * - Primary Ink (#1A241B):
+ *   Deep organic charcoal-forest for readable body copy, titles, and data.
  */
 
 export const light = {
   // Canvas & Surfaces (Majorly Off-White)
-  background: "#FAF8F5", // Crisp, airy organic off-white canvas
-  backgroundMuted: "#F2EFE9", // Soft off-white well/grouping
-  surface: "#FFFFFF", // Clean elevated cards on off-white
+  background: "#FAF8F5",
+  backgroundMuted: "#F2EFE9",
+  surface: "#FFFFFF",
   surfacePressed: "#EDE9E1",
   surfaceAccent: "#E5E0D6",
 
-  // Primary (Deep Forest Green - #1B5E20): Headers, branding & core identity
+  // Primary (Deep Forest Green - #1B5E20): Brand anchors & active states
   primary: "#1B5E20",
   primaryText: "#FFFFFF",
-  secondaryAction: "#EDF5EC", // Soft leaf-green tint
+  secondaryAction: "#EDF5EC",
   secondaryActionText: "#1B5E20",
 
-  // Secondary (Leaf Green - #4A943E): Categories, cards & healthy tags
+  // Secondary (Leaf Green - #4A943E): Categories & freshness
   secondary: "#4A943E",
   secondaryText: "#FFFFFF",
 
   // Accent (Carrot Orange - #D98327): Action CTAs & appetite stimulus
   accent: "#D98327",
   onAccent: "#FFFFFF",
-  accentSoft: "#FEF3E7", // Soft warm carrot cream
+  accentSoft: "#FEF3E7",
 
   // Status Colors (Natural Food & Ripeness Spectrum)
-  statusUrgent: "#C62828", // Heirloom Ripe Tomato
+  statusUrgent: "#C62828", // Heirloom Ripe Tomato / Expired / Spoiled
   statusUrgentSoft: "#FCE4E4",
-  statusWarning: "#D98327", // Carrot Orange / Ripe Persimmon
+  statusWarning: "#D98327", // Carrot Orange / Eat Soon / Low Confidence
   statusWarningSoft: "#FEF3E7",
-  statusSuccess: "#4A943E", // Crisp Leaf Green
+  statusSuccess: "#4A943E", // Crisp Leaf Green / Fresh
   statusSuccessSoft: "#EDF5EC",
-  statusInfo: "#1976D2", // Pure Spring Water
+  statusInfo: "#1976D2", // Informational only — never used for expired food
   statusInfoSoft: "#E3F2FD",
 
   // Compatibility aliases
@@ -55,36 +56,29 @@ export const light = {
   warning: "#D98327",
   warningSoft: "#FEF3E7",
 
-  // Typography (Deep Forest Green headers & botanical earth tones)
-  textPrimary: "#1B5E20", // Deep Forest Green for branding & headings
-  textSecondary: "#37533B", // Dark botanical green for secondary metadata
-  textTertiary: "#647E69", // Herbal sage
-  textMuted: "#93A897", // Subdued earth
+  // Typography (Organic Charcoal Ink — Deep Forest Green stays reserved for brand accents)
+  textPrimary: "#1A241B",
+  textSecondary: "#435645",
+  textTertiary: "#677A69",
+  textMuted: "#93A395",
+
+  // Toast high-contrast surface
+  toastBg: "#1A241B",
+  toastText: "#FFFFFF",
+  toastIcon: "#6EE7B7",
 
   // Borders (Soft organic off-white hairline borders)
   border: "#E8E3D8",
   borderStrong: "#D6CFBF",
 
   // Overlays
-  overlay: "rgba(27, 94, 32, 0.60)",
-  scrim: "rgba(18, 48, 22, 0.75)",
-  shadow: "#1B5E20",
+  overlay: "rgba(26, 36, 27, 0.58)",
+  scrim: "rgba(18, 28, 20, 0.80)",
+  shadow: "#1A241B",
 } as const;
 
-// Ensure dark mode also retains the crisp off-white aesthetic
 export const dark = {
   ...light,
-  background: "#FAF8F5",
-  backgroundMuted: "#F2EFE9",
-  surface: "#FFFFFF",
-  surfacePressed: "#EDE9E1",
-  surfaceAccent: "#E5E0D6",
-  textPrimary: "#1B5E20",
-  textSecondary: "#37533B",
-  textTertiary: "#647E69",
-  textMuted: "#93A897",
-  border: "#E8E3D8",
-  borderStrong: "#D6CFBF",
 } as const;
 
 export type ThemeColors = { [K in keyof typeof light]: string };

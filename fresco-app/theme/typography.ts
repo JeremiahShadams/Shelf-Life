@@ -1,6 +1,7 @@
 /**
- * FRESCO — Uber Base Typography Scale
- * Typography-driven, bold, tight, commanding.
+ * FRESCO — Botanical Editorial Typography Scale
+ * Pairs expressive Fraunces display typography (wordmark, headings, large urgency
+ * numerals) with clean platform humanist sans-serif for crisp body legibility.
  */
 
 import { TextStyle } from "react-native";
@@ -11,19 +12,24 @@ export const fontFamilies = {
   semibold: "System",
   bold: "System",
   black: "System",
+  displayBold: "Fraunces_700Bold",
+  displayExtraBold: "Fraunces_800ExtraBold",
+  displayBlack: "Fraunces_900Black",
 } as const;
 
 export const fontSizes = {
-  largeTitle: 30, // Display H1
-  title: 20, // Title H3
-  headline: 24, // Headline H2
-  cardTitle: 17, // Card Title
-  body: 15, // Body
-  caption: 14, // Small
-  micro: 12, // Micro
-  label: 10, // Uppercase Pill Label
-  statusLarge: 32, // Card Urgency Number
-  statusHuge: 84,
+  wordmark: 38,
+  largeTitle: 30,
+  headline: 24,
+  title: 20,
+  cardTitle: 17,
+  body: 15,
+  caption: 14,
+  cardMeta: 13,
+  micro: 12,
+  label: 10,
+  statusLarge: 32,
+  statusHuge: 72,
 } as const;
 
 export const fontWeights = {
@@ -36,45 +42,49 @@ export const fontWeights = {
 };
 
 export const lineHeights = {
+  wordmark: 44,
   largeTitle: 36,
   headline: 30,
   title: 26,
   cardTitle: 22,
   body: 22,
-  caption: 18,
+  caption: 19,
+  cardMeta: 18,
   micro: 16,
-  label: 12,
-  statusLarge: 32,
-  statusHuge: 84,
+  label: 13,
+  statusLarge: 36,
+  statusHuge: 76,
 } as const;
 
-/**
- * Uber Base Typography Role Presets
- */
 export const textVariants: Record<string, TextStyle> = {
-  // Legacy & Standard
+  wordmark: {
+    fontFamily: fontFamilies.displayBlack,
+    fontSize: fontSizes.wordmark,
+    lineHeight: lineHeights.wordmark,
+    letterSpacing: -1.0,
+  },
   largeTitle: {
+    fontFamily: fontFamilies.displayExtraBold,
     fontSize: fontSizes.largeTitle,
     lineHeight: lineHeights.largeTitle,
-    fontWeight: fontWeights.bold,
     letterSpacing: -0.6,
   },
   display: {
+    fontFamily: fontFamilies.displayExtraBold,
     fontSize: fontSizes.largeTitle,
     lineHeight: lineHeights.largeTitle,
-    fontWeight: fontWeights.bold,
     letterSpacing: -0.6,
   },
   headline: {
+    fontFamily: fontFamilies.displayBold,
     fontSize: fontSizes.headline,
     lineHeight: lineHeights.headline,
-    fontWeight: fontWeights.bold,
     letterSpacing: -0.4,
   },
   title: {
+    fontFamily: fontFamilies.displayBold,
     fontSize: fontSizes.title,
     lineHeight: lineHeights.title,
-    fontWeight: fontWeights.bold,
     letterSpacing: -0.3,
   },
   cardTitle: {
@@ -88,10 +98,20 @@ export const textVariants: Record<string, TextStyle> = {
     lineHeight: lineHeights.body,
     fontWeight: fontWeights.medium,
   },
+  bodyStrong: {
+    fontSize: fontSizes.body,
+    lineHeight: lineHeights.body,
+    fontWeight: fontWeights.bold,
+  },
   caption: {
     fontSize: fontSizes.caption,
     lineHeight: lineHeights.caption,
     fontWeight: fontWeights.medium,
+  },
+  cardMeta: {
+    fontSize: fontSizes.cardMeta,
+    lineHeight: lineHeights.cardMeta,
+    fontWeight: fontWeights.regular,
   },
   micro: {
     fontSize: fontSizes.micro,
@@ -102,31 +122,33 @@ export const textVariants: Record<string, TextStyle> = {
     fontSize: fontSizes.label,
     lineHeight: lineHeights.label,
     fontWeight: fontWeights.bold,
-    letterSpacing: 1,
-    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   statusLarge: {
+    fontFamily: fontFamilies.displayExtraBold,
     fontSize: fontSizes.statusLarge,
     lineHeight: lineHeights.statusLarge,
-    fontWeight: fontWeights.extrabold,
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
   },
   statusHuge: {
+    fontFamily: fontFamilies.displayBlack,
     fontSize: fontSizes.statusHuge,
     lineHeight: lineHeights.statusHuge,
-    fontWeight: fontWeights.black,
     letterSpacing: -2,
   },
 } as const;
 
 export type TextVariant =
+  | "wordmark"
   | "largeTitle"
   | "display"
   | "headline"
   | "title"
   | "cardTitle"
   | "body"
+  | "bodyStrong"
   | "caption"
+  | "cardMeta"
   | "micro"
   | "label"
   | "statusLarge"

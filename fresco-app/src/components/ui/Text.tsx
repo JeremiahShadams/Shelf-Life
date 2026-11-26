@@ -7,22 +7,36 @@
 import { Text as RNText, type TextProps as RNTextProps, type TextStyle } from "react-native";
 import { useTheme, type TextVariant } from "../../../theme";
 
+export type TextColorName =
+  | "primary"
+  | "secondary"
+  | "tertiary"
+  | "brand"
+  | "accent"
+  | "success"
+  | "warning"
+  | "danger"
+  | "inverse";
+
 export type TextProps = RNTextProps & {
   /** Typographic role from the locked scale. Defaults to body. */
   variant?: TextVariant;
   /** Token color names — no hex allowed. Defaults to textPrimary. */
-  color?: "primary" | "secondary" | "tertiary" | "accent" | "warning" | "danger";
+  color?: TextColorName;
   align?: TextStyle["textAlign"];
 };
 
-const colorMap = {
+const colorMap: Record<TextColorName, keyof ReturnType<typeof useTheme>["colors"]> = {
   primary: "textPrimary",
   secondary: "textSecondary",
   tertiary: "textTertiary",
+  brand: "primary",
   accent: "accent",
+  success: "statusSuccess",
   warning: "warning",
   danger: "danger",
-} as const;
+  inverse: "primaryText",
+};
 
 export function Text({ variant = "body", color = "primary", align, style, ...rest }: TextProps) {
   const theme = useTheme();

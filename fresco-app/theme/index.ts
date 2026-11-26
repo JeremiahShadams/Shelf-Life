@@ -10,7 +10,7 @@
 import { useColorScheme } from "react-native";
 import { useMemo } from "react";
 import { light, dark, type ThemeColors } from "./colors";
-import { textVariants, type TextVariant } from "./typography";
+import { textVariants } from "./typography";
 import { spacing, layout, radius, borders, elevation } from "./spacing";
 
 export type Theme = {
@@ -23,8 +23,6 @@ export type Theme = {
   borders: typeof borders;
   elevation: typeof elevation;
 };
-
-export type { ThemeColors, TextVariant };
 
 export function useTheme(): Theme {
   const scheme = useColorScheme();
