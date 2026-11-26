@@ -41,11 +41,13 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFFFFF",
+          "backgroundColor": "#FAF8F5",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
       ],
+      "expo-font",
+      "expo-notifications",
       "expo-secure-store",
       [
         "expo-camera",
