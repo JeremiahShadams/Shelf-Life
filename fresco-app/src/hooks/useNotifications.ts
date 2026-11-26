@@ -1,32 +1,35 @@
 /**
  * Fresco — Notification hooks (TanStack Query)
- * The backend creates an expiry alert whenever an item is added, so this is
- * the read side of that flow. Guest sessions have no server rows and must
- * not fire a 401, so they resolve to an empty list locally.
+ * For signed-in accounts, fetches backend alerts; for guest or offline sessions,
+ * dynamically generates real in-app alert entries from persisted local inventory.
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getGuestItemsSnapshot } from "../services/inventory";
+import { buildLocalAlertItems } from "../services/localNotifications";
 import {
   listNotifications,
-  markNotificationRead,
   markAllNotificationsRead,
+  markNotificationRead,
 } from "../services/notifications";
 import { useAuth } from "../stores/auth";
 import type { NotificationListResponse } from "../types/api";
 
 const NOTIFICATIONS_KEY = "notifications";
 
-const EMPTY_NOTIFICATIONS: NotificationListResponse = { items: [], total: 0 };
-
 export function useNotifications() {
   const token = useAuth((s) => (s.status === "authed" ? s.token : null));
 
   return useQuery({
     queryKey: [NOTIFICATIONS_KEY],
-    queryFn: () =>
-      token === "guest_demo_token"
-        ? Promise.resolve(EMPTY_NOTIFICATIONS)
-        : listNotifications(token as string),
+    queryFn: async (): Promise<NotificationListResponse> => {
+      if (token === "guest_demo_token") {
+        const items = await getGuestItemsSnapshot();
+        const alerts = buildLocalAlertItems(items);
+        return { items: alerts, total: alerts.length };
+      }
+      return listNotifications(token as string);
+    },
     enabled: token != null,
   });
 }
@@ -41,7 +44,7 @@ export function useMarkNotificationRead() {
       return markNotificationRead(token, id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [NOTIFICATIONS_KEY] });
+      void queryClient.invalidateQueries({ queryKey: [NOTIFICATIONS_KEY] });
     },
   });
 }
@@ -56,7 +59,7 @@ export function useMarkAllNotificationsRead() {
       return markAllNotificationsRead(token);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [NOTIFICATIONS_KEY] });
+      void queryClient.invalidateQueries({ queryKey: [NOTIFICATIONS_KEY] });
     },
   });
 }
