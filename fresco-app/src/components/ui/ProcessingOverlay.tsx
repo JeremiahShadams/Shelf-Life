@@ -1,24 +1,20 @@
 /**
- * FRESCO — Uber Base Processing Overlay
- * Matches SuperDesign draft (2010a8d9-ff1e-477d-abe3-bf57f876c94a):
- * - Full-screen dark translucent backdrop overlay (rgba(0,0,0,0.85))
- * - Pulsing ambient outer glow ring around the activity spinner
- * - Progressive timer-based feedback:
- *     Phase 1 (0–8s): "Analyzing your fruit..." / "This takes a few seconds"
- *     Phase 2 (8–20s): "Almost done..." / "Comparing with our database"
- *     Phase 3 (20s+): Amber text "Taking longer than expected..." / "Still trying to connect"
- * - Optional cancel button if user wishes to abort
+ * FRESCO — Scan Processing Overlay
+ * Uses react-native-reanimated for native UI-thread pulsing motion.
+ * Progressive timer-based feedback with a Cancel escape hatch after 3s
+ * so users are never trapped on slow connections.
  */
 
-import React, { useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Animated,
-  Modal,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from "react-native";
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { useTheme } from "../../../theme";
 import { Text } from "./Text";
 
@@ -29,135 +25,107 @@ export interface ProcessingOverlayProps {
 
 export function ProcessingOverlay({ visible, onCancel }: ProcessingOverlayProps) {
   const theme = useTheme();
-  const { colors, spacing } = theme;
+  const { colors } = theme;
 
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const pulseAnim = useRef(new Animated.Value(0.85)).current;
-  const pulseOpacity = useRef(new Animated.Value(0.4)).current;
+  const pulseScale = useSharedValue(0.88);
+  const pulseOpacity = useSharedValue(0.4);
 
-  // Pulse animation loop
+  useEffect(() => {
+    if (visible) {
+      pulseScale.value = withRepeat(
+        withSequence(
+          withTiming(1.22, { duration: 1100 }),
+          withTiming(0.88, { duration: 1100 }),
+        ),
+        -1,
+        false,
+      );
+      pulseOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.85, { duration: 1100 }),
+          withTiming(0.28, { duration: 1100 }),
+        ),
+        -1,
+        false,
+      );
+    } else {
+      cancelAnimation(pulseScale);
+      cancelAnimation(pulseOpacity);
+      pulseScale.value = 0.88;
+      pulseOpacity.value = 0.4;
+    }
+  }, [pulseOpacity, pulseScale, visible]);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+    opacity: pulseOpacity.value,
+  }));
+
   useEffect(() => {
     if (!visible) return;
-
-    const pulseLoop = Animated.loop(
-      Animated.parallel([
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.25,
-            duration: 1200,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 0.85,
-            duration: 1200,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.sequence([
-          Animated.timing(pulseOpacity, {
-            toValue: 0.85,
-            duration: 1200,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseOpacity, {
-            toValue: 0.25,
-            duration: 1200,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]),
-    );
-
-    pulseLoop.start();
-    return () => pulseLoop.stop();
-  }, [visible]);
-
-  // Elapsed timer tracking
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | undefined;
-
-    if (visible) {
-      setElapsedSeconds(0);
-      interval = setInterval(() => {
-        setElapsedSeconds((prev) => prev + 1);
-      }, 1000);
-    } else {
-      setElapsedSeconds(0);
-    }
-
+    const startedAt = Date.now();
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 500);
     return () => {
-      if (interval) clearInterval(interval);
+      clearInterval(interval);
+      setElapsedSeconds(0);
     };
   }, [visible]);
 
   if (!visible) return null;
 
-  // Progressive message phases per design
-  let title = "Analyzing your fruit...";
-  let subtitle = "This takes a few seconds";
-  let titleColor = "#FFFFFF";
-  let subtitleColor = "rgba(255, 255, 255, 0.65)";
+  let title = "Analyzing your produce...";
+  let subtitle = "Checking freshness and shelf life";
+  let titleColor = colors.primaryText;
 
-  if (elapsedSeconds >= 20) {
-    title = "Taking longer than expected...";
-    subtitle = "Still trying to connect to AI server";
-    titleColor = colors.statusWarning;
-    subtitleColor = "rgba(230, 149, 0, 0.85)";
-  } else if (elapsedSeconds >= 8) {
+  if (elapsedSeconds >= 18) {
+    title = "Taking longer than usual...";
+    subtitle = "Slow connection — you can cancel and retry anytime";
+    titleColor = colors.accent;
+  } else if (elapsedSeconds >= 7) {
     title = "Almost done...";
-    subtitle = "Comparing with our produce database";
-    titleColor = "#FFFFFF";
-    subtitleColor = "rgba(255, 255, 255, 0.65)";
+    subtitle = "Matching variety and storage guidance";
   }
 
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={[styles.overlayContainer, { backgroundColor: colors.scrim }]}>
         <View style={styles.contentCenter}>
-          {/* Spinner with Pulsing Ambient Ring */}
           <View style={styles.spinnerContainer}>
             <Animated.View
               style={[
                 styles.pulseRing,
-                {
-                  borderColor: colors.accent,
-                  transform: [{ scale: pulseAnim }],
-                  opacity: pulseOpacity,
-                },
+                { borderColor: colors.accent },
+                pulseStyle,
               ]}
             />
-            <ActivityIndicator size="large" color="#FFFFFF" />
+            <ActivityIndicator size="large" color={colors.primaryText} />
           </View>
 
-          {/* Dynamic Progressive Text */}
           <View style={styles.textContainer}>
-            <Text
-              style={[
-                styles.titleText,
-                { color: titleColor },
-              ]}
-            >
+            <Text variant="cardTitle" align="center" style={{ color: titleColor, marginBottom: 6 }}>
               {title}
             </Text>
-
-            <Text
-              style={[
-                styles.subtitleText,
-                { color: subtitleColor },
-              ]}
-            >
+            <Text variant="caption" align="center" style={styles.subtitleText}>
               {subtitle}
             </Text>
           </View>
 
-          {/* Cancel button after 10s */}
-          {elapsedSeconds >= 10 && onCancel && (
+          {onCancel && elapsedSeconds >= 3 && (
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancel scan"
               onPress={onCancel}
-              style={styles.cancelButton}
-              hitSlop={12}
+              style={({ pressed }) => [
+                styles.cancelButton,
+                { opacity: pressed ? 0.65 : 1 },
+              ]}
             >
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text variant="bodyStrong" color="inverse">
+                Cancel scan
+              </Text>
             </Pressable>
           )}
         </View>
@@ -169,7 +137,6 @@ export function ProcessingOverlay({ visible, onCancel }: ProcessingOverlayProps)
 const styles = StyleSheet.create({
   overlayContainer: {
     flex: 1,
-    backgroundColor: "rgba(13, 23, 17, 0.88)",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
@@ -193,34 +160,22 @@ const styles = StyleSheet.create({
     height: 68,
     borderRadius: 34,
     borderWidth: 2.5,
-    borderColor: "#22C55E",
   },
   textContainer: {
     alignItems: "center",
     minHeight: 54,
   },
-  titleText: {
-    fontSize: 17,
-    fontWeight: "800",
-    letterSpacing: -0.3,
-    marginBottom: 6,
-    textAlign: "center",
-  },
   subtitleText: {
-    fontSize: 13,
-    fontWeight: "500",
-    textAlign: "center",
+    color: "rgba(255, 255, 255, 0.78)",
   },
   cancelButton: {
-    marginTop: 28,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  cancelText: {
-    color: "rgba(255, 255, 255, 0.7)",
-    fontSize: 14,
-    fontWeight: "600",
-    textDecorationLine: "underline",
+    marginTop: 24,
+    minHeight: 44,
+    minWidth: 120,
+    paddingHorizontal: 20,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.14)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
-
