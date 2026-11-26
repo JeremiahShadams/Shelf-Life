@@ -1,8 +1,8 @@
 /**
- * FRESCO — Uber Base Status Badge & Summary Pill
+ * FRESCO — Status Badge & Summary Pill
  * - Dot indicator (6px circle)
- * - Uppercase tracking-wider label
- * - Soft status background with high contrast text
+ * - Soft status background with high-contrast text
+ * - Semantic colors: expired/urgent strictly map to Crimson, never Blue.
  */
 
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
@@ -17,6 +17,7 @@ export type BadgeProps = {
   status?: BadgeStatus;
   daysLeft?: number;
   showDot?: boolean;
+  active?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -25,12 +26,12 @@ export function Badge({
   status,
   daysLeft,
   showDot = true,
+  active = false,
   style,
 }: BadgeProps) {
   const theme = useTheme();
   const { colors, spacing, radius } = theme;
 
-  // Resolve status from daysLeft if provided
   let resolvedStatus: BadgeStatus = status ?? "success";
   if (daysLeft !== undefined) {
     if (daysLeft <= 0) {
@@ -44,11 +45,11 @@ export function Badge({
     }
   }
 
-  // Color mapping per Uber Base spec
   let bg = colors.statusSuccessSoft;
   let fg = colors.statusSuccess;
 
   switch (resolvedStatus) {
+    case "expired":
     case "urgent":
       bg = colors.statusUrgentSoft;
       fg = colors.statusUrgent;
@@ -57,7 +58,6 @@ export function Badge({
       bg = colors.statusWarningSoft;
       fg = colors.statusWarning;
       break;
-    case "expired":
     case "info":
     case "calm":
       bg = colors.statusInfoSoft;
@@ -78,7 +78,9 @@ export function Badge({
           backgroundColor: bg,
           borderRadius: radius.badge,
           paddingHorizontal: spacing.s,
-          paddingVertical: spacing.xxs + 1,
+          paddingVertical: spacing.xxs + 2,
+          borderWidth: active ? 1.5 : 1,
+          borderColor: active ? fg : "transparent",
         },
         style,
       ]}
@@ -89,20 +91,12 @@ export function Badge({
             styles.dot,
             {
               backgroundColor: fg,
-              marginRight: spacing.xxs + 1,
+              marginRight: spacing.xxs + 2,
             },
           ]}
         />
       )}
-      <Text
-        variant="label"
-        style={{
-          color: fg,
-          fontSize: 10,
-          fontWeight: "700",
-          letterSpacing: 0.8,
-        }}
-      >
+      <Text variant="label" style={{ color: fg }}>
         {label}
       </Text>
     </View>

@@ -1,16 +1,13 @@
 /**
- * FRESCO — Uber Base Floating Toast
- * Floating black pill positioned above bottom navigation or screen bottom.
- * Matches design: Checkmark icon (green #05A357), bold white message, optional "Undo" action.
+ * FRESCO — Floating Action Toast
+ * Uses react-native-reanimated layout animations (FadeInDown / FadeOutDown)
+ * for native UI-thread motion compatible with React Compiler, paired with a
+ * high-contrast organic charcoal surface (#1A241B) and mint check icon (#6EE7B7).
  */
 
-import React, { useEffect, useRef } from "react";
-import {
-  Animated,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
+import React, { useCallback, useEffect } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../theme";
 import { Text } from "./Text";
@@ -35,68 +32,15 @@ export function Toast({
   const theme = useTheme();
   const { colors, radius, elevation } = theme;
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(16)).current;
+  const handleDismiss = useCallback(() => {
+    onDismiss();
+  }, [onDismiss]);
 
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    if (visible) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 220,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          friction: 8,
-          tension: 60,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      if (duration > 0) {
-        timer = setTimeout(() => {
-          handleDismiss();
-        }, duration);
-      }
-    } else {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 16,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [visible]);
-
-  const handleDismiss = () => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 16,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onDismiss();
-    });
-  };
+    if (!visible || duration <= 0) return;
+    const timer = setTimeout(handleDismiss, duration);
+    return () => clearTimeout(timer);
+  }, [duration, handleDismiss, visible]);
 
   const handleUndo = () => {
     if (onUndo) {
@@ -108,22 +52,16 @@ export function Toast({
   if (!visible) return null;
 
   return (
-    <View
-      pointerEvents="box-none"
-      style={[
-        styles.overlayContainer,
-        { bottom: bottomOffset },
-      ]}
-    >
+    <View pointerEvents="box-none" style={[styles.overlayContainer, { bottom: bottomOffset }]}>
       <Animated.View
+        entering={FadeInDown.duration(220)}
+        exiting={FadeOutDown.duration(160)}
         style={[
           styles.toastCard,
           {
-            backgroundColor: colors.primary, // #000000 Uber Black
+            backgroundColor: colors.toastBg,
             borderRadius: radius.card,
             ...elevation.modal,
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
           },
         ]}
       >
@@ -131,12 +69,13 @@ export function Toast({
           <Ionicons
             name="checkmark-circle"
             size={20}
-            color={colors.statusSuccess}
+            color={colors.toastIcon}
             style={styles.icon}
           />
           <Text
-            variant="body"
-            style={[styles.messageText, { color: colors.primaryText }]}
+            variant="caption"
+            color="inverse"
+            style={styles.messageText}
             numberOfLines={1}
           >
             {message}
@@ -154,10 +93,7 @@ export function Toast({
               { opacity: pressed ? 0.6 : 1 },
             ]}
           >
-            <Text
-              variant="caption"
-              style={[styles.undoText, { color: colors.primaryText }]}
-            >
+            <Text variant="bodyStrong" color="inverse" style={styles.undoText}>
               Undo
             </Text>
           </Pressable>
@@ -195,17 +131,14 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   messageText: {
-    fontWeight: "700",
-    fontSize: 14,
     flexShrink: 1,
   },
   undoButton: {
-    paddingVertical: 2,
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: 4,
   },
   undoText: {
-    fontWeight: "700",
-    fontSize: 14,
     textDecorationLine: "underline",
   },
 });
-
