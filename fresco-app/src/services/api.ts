@@ -1,22 +1,19 @@
 /**
  * Fresco — API client
- * Thin fetch wrapper: JSON in/out, bearer-token injection, and errors
- * normalized to ApiError (status + human message) so screens and TanStack
- * Query never see raw Response objects.
+ * Thin fetch wrapper: JSON/multipart in & out, bearer-token injection, and errors
+ * normalized to plain-language ApiError objects (never leaking raw LAN IPs or
+ * low-level runtime strings to end users).
  */
 
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 
 function resolveApiUrl(): string {
-  // Explicit configuration always wins. Production builds must set this.
   const envUrl = (process.env as { EXPO_PUBLIC_API_URL?: string }).EXPO_PUBLIC_API_URL?.trim();
   if (envUrl) {
     return envUrl.replace(/\/+$/, "");
   }
 
-  // In Expo Go / dev builds, derive the host from the dev server so a physical
-  // phone talks to the machine running the backend instead of itself.
   const hostUri =
     Constants.expoConfig?.hostUri ??
     (Constants as unknown as { manifest?: { debuggerHost?: string } }).manifest?.debuggerHost ??
@@ -27,22 +24,22 @@ function resolveApiUrl(): string {
     return `http://${hostIp}:8000`;
   }
 
-  // Simulator/emulator defaults. 10.0.2.2 is the host machine from the Android
-  // emulator; iOS simulator and web can use localhost.
   return Platform.OS === "android" ? "http://10.0.2.2:8000" : "http://localhost:8000";
 }
 
 const API_URL = resolveApiUrl();
-console.log("[Fresco API] Connecting to:", API_URL);
 
 export class ApiError extends Error {
-  /** HTTP status, or 0 for network failures (server unreachable). */
+  /** HTTP status, or 0 for network/cancellation failures (server unreachable). */
   status: number;
+  /** True when explicitly cancelled by user via AbortController. */
+  cancelled: boolean;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, cancelled = false) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.cancelled = cancelled;
   }
 }
 
@@ -82,12 +79,18 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       signal: options.signal,
     });
   } catch (err) {
-    // fetch throws on network-level failures (DNS, refused, offline, blocked by firewall)
-    if (err instanceof Error && err.name === "AbortError") {
-      throw new ApiError(0, "The scan timed out. Please try again.");
+    // Log raw networking details internally; present clean plain language to users.
+    const rawReason = err instanceof Error ? err.message : String(err);
+    const isAborted =
+      (err instanceof Error && err.name === "AbortError") ||
+      Boolean(options.signal?.aborted);
+
+    if (isAborted) {
+      throw new ApiError(0, "Scan cancelled.", true);
     }
-    const reason = err instanceof Error ? err.message : String(err);
-    throw new ApiError(0, `Can't reach server at ${API_URL}: ${reason}`);
+
+    console.warn(`[Fresco API] Request failed (${API_URL}${path}): ${rawReason}`);
+    throw new ApiError(0, "Couldn't reach Fresco — check your connection and try again.");
   }
 
   if (!res.ok) {
@@ -96,12 +99,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       const json = (await res.json()) as { detail?: unknown };
       detail = json.detail ?? null;
     } catch {
-      // non-JSON error body — fall through to the generic message
+      // non-JSON error body — fall through to generic message
     }
     throw new ApiError(res.status, detailToMessage(detail));
   }
 
-  // 204/no-content responses (none today, but delete paths could become them)
   if (res.status === 204) return undefined as T;
 
   return (await res.json()) as T;
@@ -115,10 +117,6 @@ export const api = {
     request<T>(path, { method: "PATCH", body, token }),
   delete: <T>(path: string, token?: string | null) =>
     request<T>(path, { method: "DELETE", token }),
-  /**
-   * Multipart upload. Let fetch set Content-Type so the boundary is correct —
-   * never set it manually for FormData.
-   */
   upload: <T>(path: string, formData: FormData, token?: string | null, signal?: AbortSignal) =>
     request<T>(path, { method: "POST", formData, token, signal }),
 };
