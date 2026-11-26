@@ -1,19 +1,22 @@
 /**
- * FRESCO — Uber Base Inventory Card
- * List item card matching Uber Base design system:
- * - Left accent colored vertical strip (Red urgent, Amber warning, Green fresh)
- * - Item title (bold, 17px) & category/storage metadata
- * - Right-aligned large urgency number (32px bold) & uppercase unit (DAY LEFT / DAYS)
+ * FRESCO — Inventory Card
+ * Displays each tracked item with:
+ * - Left status accent strip (Crimson urgent/expired, Carrot amber soon, Leaf green fresh)
+ * - 48x48 captured produce thumbnail (with offline local placeholder fallback)
+ * - Item name + storage & quantity using locked Text variants (no inline overrides)
+ * - Right-aligned Fraunces urgency numeral & day unit
  */
 
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Image, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { useTheme } from "../../../theme";
+import { resolveItemImageSource } from "../../utils/images";
 import { Text } from "./Text";
 
 export type InventoryCardProps = {
   name: string;
   storage: string;
   category?: string;
+  imagePath?: string | null;
   quantity?: number;
   daysLeft: number;
   onPress?: () => void;
@@ -24,6 +27,7 @@ export function InventoryCard({
   name,
   storage,
   category,
+  imagePath,
   quantity = 1,
   daysLeft,
   onPress,
@@ -32,49 +36,35 @@ export function InventoryCard({
   const theme = useTheme();
   const { colors, spacing, radius, borders } = theme;
 
-  // Determine status color per Uber Base system
   let statusColor = colors.statusSuccess;
-  let statusText = "DAYS";
+  let statusText = "Days left";
 
   if (daysLeft <= 0) {
     statusColor = colors.statusUrgent;
-    statusText = "EXPIRED";
+    statusText = "Expired";
   } else if (daysLeft <= 1) {
     statusColor = colors.statusUrgent;
-    statusText = "DAY LEFT";
+    statusText = "Day left";
   } else if (daysLeft <= 4) {
     statusColor = colors.statusWarning;
-    statusText = "DAYS";
+    statusText = "Days left";
   } else {
     statusColor = colors.statusSuccess;
-    statusText = "DAYS";
+    statusText = "Days left";
   }
 
-  // Live days are fractional (e.g. 0.4 left). Never show "0 DAYS" for an
-  // item that hasn't expired, and never round 1.9 up to a calm "2".
   const displayDays = daysLeft <= 0 ? 0 : Math.max(1, Math.ceil(daysLeft));
 
-  // Format metadata line: e.g. "Fridge · Nightshade · Qty: 2"
-  const metaParts: string[] = [];
-  if (storage) {
-    const sLower = storage.toLowerCase();
-    metaParts.push(
-      sLower === "fridge"
-        ? "Fridge"
-        : sLower === "freezer"
-          ? "Freezer"
-          : sLower === "pantry"
-            ? "Pantry"
-            : "Counter",
-    );
-  }
-  if (category && category.toLowerCase() !== "other") {
-    metaParts.push(category);
-  }
-  if (quantity) {
-    metaParts.push(`Qty: ${quantity}`);
-  }
-  const metaString = metaParts.join(" · ");
+  const storageLabel = (() => {
+    const sLower = (storage || "").toLowerCase();
+    if (sLower === "fridge") return "Fridge";
+    if (sLower === "freezer") return "Freezer";
+    if (sLower === "pantry") return "Pantry";
+    return "Counter";
+  })();
+
+  const qtyText = quantity > 1 ? `${quantity} items` : "1 item";
+  const metaString = `${storageLabel}, ${qtyText}`;
 
   return (
     <Pressable
@@ -94,7 +84,6 @@ export function InventoryCard({
         style,
       ]}
     >
-      {/* Left colored accent strip */}
       <View
         style={[
           styles.accentStrip,
@@ -106,53 +95,33 @@ export function InventoryCard({
       />
 
       <View style={[styles.contentRow, { padding: spacing.m }]}>
-        {/* Item Info */}
+        <Image
+          source={resolveItemImageSource(imagePath, category ?? name)}
+          style={[
+            styles.thumbnail,
+            {
+              backgroundColor: colors.backgroundMuted,
+              borderRadius: radius.sm + 2,
+              borderColor: colors.border,
+            },
+          ]}
+          resizeMode="cover"
+        />
+
         <View style={styles.infoCol}>
-          <Text
-            variant="cardTitle"
-            numberOfLines={1}
-            style={{
-              color: colors.textPrimary,
-              fontSize: 17,
-              fontWeight: "700",
-              letterSpacing: -0.2,
-            }}
-          >
+          <Text variant="cardTitle" color="primary" numberOfLines={1}>
             {name}
           </Text>
-          <Text
-            variant="caption"
-            numberOfLines={1}
-            style={{
-              color: colors.textSecondary,
-              marginTop: 4,
-              fontSize: 13,
-            }}
-          >
+          <Text variant="cardMeta" color="secondary" numberOfLines={1} style={styles.metaLine}>
             {metaString}
           </Text>
         </View>
 
-        {/* Right Urgency Indicator */}
         <View style={styles.urgencyCol}>
-          <Text
-            style={[
-              styles.urgencyNumber,
-              {
-                color: statusColor,
-              },
-            ]}
-          >
+          <Text variant="statusLarge" style={{ color: statusColor }}>
             {displayDays}
           </Text>
-          <Text
-            style={[
-              styles.urgencyUnit,
-              {
-                color: statusColor,
-              },
-            ]}
-          >
+          <Text variant="micro" style={{ color: statusColor }}>
             {statusText}
           </Text>
         </View>
@@ -175,30 +144,25 @@ const styles = StyleSheet.create({
   contentRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingLeft: 20, // Extra padding to offset the left strip
+    paddingLeft: 18,
+    gap: 12,
+  },
+  thumbnail: {
+    width: 48,
+    height: 48,
+    borderWidth: 1,
   },
   infoCol: {
     flex: 1,
-    paddingRight: 12,
+    paddingRight: 8,
+  },
+  metaLine: {
+    marginTop: 3,
   },
   urgencyCol: {
     alignItems: "flex-end",
     justifyContent: "center",
-  },
-  urgencyNumber: {
-    fontSize: 32,
-    lineHeight: 34,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-  },
-  urgencyUnit: {
-    fontSize: 10,
-    lineHeight: 12,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    marginTop: 2,
+    minWidth: 56,
   },
   shadow: {
     shadowOpacity: 0.04,
@@ -207,4 +171,3 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 });
-

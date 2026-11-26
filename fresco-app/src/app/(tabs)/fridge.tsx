@@ -1,23 +1,16 @@
 /**
- * FRESCO — Inventory Screen (Uber Base Design System)
- * Matches Reference Screens:
- * 1. Inventory list with summary pills, filter tabs, left accent strips, large urgency numbers
- * 2. Add to inventory bottom sheet modal
- * 3. Added to inventory success view
- * 4. Empty state with apple icon & compact CTA
- * 5. Error state with warning icon & retry CTA
+ * FRESCO — Fridge (Tracked Produce Screen)
+ * - Uses react-native-safe-area-context for proper Android & iOS safe-area insets
+ * - Tab label, route file, and screen header all agree on "Fridge"
+ * - Summary pills filter the list on tap with >= 44pt hit targets
+ * - Each InventoryCard renders its captured produce thumbnail
  */
 
 import { useMemo } from "react";
-import {
-  FlatList,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../../theme";
 import {
   EmptyState,
@@ -28,6 +21,7 @@ import {
   Loading,
   SummaryPills,
   Text,
+  type SummaryPillType,
   type TabKey,
 } from "../../components/ui";
 import { useInventory } from "../../hooks/useInventory";
@@ -42,26 +36,21 @@ function daysOf(item: InventoryItem): number {
 
 export default function FridgeScreen() {
   const theme = useTheme();
-  const { colors, spacing, layout } = theme;
+  const { colors, spacing, layout, radius, borders } = theme;
 
   const filter = useFridgeStore((s) => s.filter);
   const setFilter = useFridgeStore((s) => s.setFilter);
   const isGuest = useAuth((s) => s.token === "guest_demo_token");
 
-  // Live Inventory Hook
   const inventoryQuery = useInventory();
   const notifications = useNotifications();
   const hasAlerts = (notifications.data?.total ?? 0) > 0;
 
-  // The server response is the only source of truth — no demo fallback, so
-  // an empty account shows the real empty state instead of fake produce.
   const allItems: InventoryItem[] = useMemo(
     () => inventoryQuery.data?.items ?? [],
     [inventoryQuery.data],
   );
 
-  // Compute status counts for SummaryPills from the same thresholds the
-  // filter tabs use, so pill counts and tab contents always agree.
   const { expiringCount, expiredCount, freshCount } = useMemo(() => {
     let expiring = 0;
     let expired = 0;
@@ -77,51 +66,59 @@ export default function FridgeScreen() {
     return { expiringCount: expiring, expiredCount: expired, freshCount: fresh };
   }, [allItems]);
 
-  // Filter items according to the active tab
   const filteredItems = useMemo(() => {
     return allItems.filter((item) => {
       const d = daysOf(item);
       if (filter === "eat_first") return d > 0 && d <= 4;
       if (filter === "fresh") return d > 4;
       if (filter === "expired") return d <= 0;
-      return true; // "all"
+      return true;
     });
   }, [allItems, filter]);
 
+  const activePillType: SummaryPillType | null =
+    filter === "eat_first"
+      ? "expiring"
+      : filter === "expired"
+        ? "expired"
+        : filter === "fresh"
+          ? "fresh"
+          : null;
+
+  const handlePressPill = (type: SummaryPillType) => {
+    const mapped: TabKey =
+      type === "expiring" ? "eat_first" : type === "expired" ? "expired" : "fresh";
+    setFilter(filter === mapped ? "all" : mapped);
+  };
+
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={["top"]} style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        {/* Top Header: Title & Notification Bell */}
+        {/* Header: agrees 1:1 with "Fridge" tab */}
         <View
           style={[
             styles.headerRow,
             {
               paddingHorizontal: layout.screenPadding,
               paddingTop: spacing.m,
-              paddingBottom: spacing.s,
+              paddingBottom: spacing.xs,
             },
           ]}
         >
-          <Text
-            variant="largeTitle"
-            style={{
-              color: colors.textPrimary,
-              fontSize: 30,
-              fontWeight: "800",
-              letterSpacing: -0.6,
-            }}
-          >
-            Inventory
+          <Text variant="largeTitle" color="brand">
+            Fridge
           </Text>
 
-          {/* Notification Bell — dot only when alerts exist */}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={
-              hasAlerts ? `Notifications, ${notifications.data?.total ?? 0} alerts` : "Notifications"
+              hasAlerts ? `Alerts, ${notifications.data?.total ?? 0} active` : "Alerts"
             }
             onPress={() => router.push("/notifications")}
-            style={styles.bellButton}
+            style={({ pressed }) => [
+              styles.bellButton,
+              { opacity: pressed ? 0.7 : 1 },
+            ]}
           >
             <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
             {hasAlerts && (
@@ -138,70 +135,69 @@ export default function FridgeScreen() {
           </Pressable>
         </View>
 
-        {/* Summary Pills */}
-        <View style={{ paddingHorizontal: layout.screenPadding, marginBottom: spacing.m }}>
+        {/* Tappable Summary Pills */}
+        <View style={{ paddingHorizontal: layout.screenPadding, marginBottom: spacing.xs }}>
           <SummaryPills
             expiringCount={expiringCount}
             expiredCount={expiredCount}
             freshCount={freshCount}
+            activeType={activePillType}
+            onPressPill={handlePressPill}
           />
         </View>
 
         {/* Filter Tabs */}
         <View style={{ paddingHorizontal: layout.screenPadding, marginBottom: spacing.m }}>
-          <FilterTabs
-            activeTab={filter as TabKey}
-            onTabChange={(key) => setFilter(key)}
-          />
+          <FilterTabs activeTab={filter as TabKey} onTabChange={(key) => setFilter(key)} />
         </View>
 
-        {/* Guest Mode Banner */}
+        {/* Guest Mode Local Persistence Notice */}
         {isGuest && (
           <View
-            style={{
-              marginHorizontal: layout.screenPadding,
-              marginBottom: spacing.m,
-              paddingVertical: spacing.xs,
-              paddingHorizontal: spacing.s,
-              backgroundColor: colors.backgroundMuted,
-              borderRadius: 8,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: spacing.xs,
-            }}
+            style={[
+              styles.guestBanner,
+              {
+                marginHorizontal: layout.screenPadding,
+                marginBottom: spacing.m,
+                backgroundColor: colors.backgroundMuted,
+                borderColor: colors.border,
+                borderWidth: borders.hairline,
+                borderRadius: radius.sm + 2,
+              },
+            ]}
           >
-            <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
-            <Text variant="micro" color="secondary" style={{ flex: 1 }}>
-              Guest mode — your inventory is temporary and will be cleared when you sign out.
+            <Ionicons name="phone-portrait-outline" size={16} color={colors.textSecondary} />
+            <Text variant="micro" color="secondary" style={styles.guestText}>
+              Guest mode — items stay saved on this device until you sign out. Sign in anytime for cloud backup.
             </Text>
           </View>
         )}
 
-        {/* Main Content Area */}
+        {/* List / Empty / Error States */}
         {inventoryQuery.isLoading && allItems.length === 0 ? (
           <Loading fullScreen />
         ) : inventoryQuery.isError && allItems.length === 0 ? (
           <ErrorState
             full
-            title="Couldn't load inventory"
-            message="Something went wrong while fetching your items."
-            retryLabel="Try Again"
-            onRetry={() => inventoryQuery.refetch()}
+            title="Couldn't load your fridge"
+            message="Check your connection and try again."
+            retryLabel="Retry"
+            onRetry={() => void inventoryQuery.refetch()}
           />
         ) : filteredItems.length === 0 ? (
           allItems.length === 0 ? (
             <EmptyState
               full
-              title="No items yet"
-              description="Scan a fruit or add one by name to start tracking it."
-              actionLabel="Add a fruit"
+              title="Your fridge is empty"
+              description="Scan a produce item or add one by name to start tracking shelf life."
+              actionLabel="Add produce"
               onAction={() => router.push("/add-item")}
             />
           ) : (
             <EmptyState
               full
-              title="Nothing here"
-              description="No items match this filter right now."
+              title="Nothing in this filter"
+              description="No tracked items match this freshness stage right now."
               actionLabel="Show all"
               onAction={() => setFilter("all")}
               visual={
@@ -211,7 +207,7 @@ export default function FridgeScreen() {
                     { backgroundColor: colors.backgroundMuted },
                   ]}
                 >
-                  <Ionicons name="filter-outline" size={34} color={colors.textPrimary} />
+                  <Ionicons name="filter-outline" size={32} color={colors.primary} />
                 </View>
               }
             />
@@ -222,7 +218,7 @@ export default function FridgeScreen() {
             keyExtractor={(item) => String(item.id)}
             contentContainerStyle={{
               paddingHorizontal: layout.screenPadding,
-              paddingBottom: 100, // Space for FAB & Bottom Nav
+              paddingBottom: 104,
               paddingTop: spacing.xs,
               gap: spacing.m,
             }}
@@ -236,6 +232,7 @@ export default function FridgeScreen() {
                 name={item.fruit.name}
                 storage={item.storage_method}
                 category={item.fruit.subcategory}
+                imagePath={item.image_path}
                 quantity={item.quantity}
                 daysLeft={daysOf(item)}
                 onPress={() =>
@@ -249,7 +246,6 @@ export default function FridgeScreen() {
           />
         )}
 
-        {/* Floating Action Button (FAB) */}
         <FAB onPress={() => router.push("/add-item")} style={styles.fabPosition} />
       </View>
     </SafeAreaView>
@@ -270,24 +266,35 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   bellButton: {
+    width: 44,
+    height: 44,
     position: "relative",
-    padding: 6,
     alignItems: "center",
     justifyContent: "center",
   },
   notificationDot: {
     position: "absolute",
-    top: 5,
-    right: 5,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: 9,
+    right: 9,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
     borderWidth: 1.5,
   },
+  guestBanner: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  guestText: {
+    flex: 1,
+  },
   filterEmptyIcon: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: "center",
     justifyContent: "center",
   },
